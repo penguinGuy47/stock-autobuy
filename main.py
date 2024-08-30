@@ -3,7 +3,7 @@ import fidelity
 import firstrade
 import public
 import robinhood
-import schwaab
+import schwab
 import sofi
 import tornado
 import tradier
@@ -19,7 +19,8 @@ def main():
     # chase.buy(ticker)
     # tradier.buy(ticker)
     # fidelity.buy(ticker)
-    firstrade.buy(ticker, chrome_path, chrome_profile)
+    # firstrade.buy(ticker, chrome_path, chrome_profile)
+    schwab.buy(ticker, chrome_path, chrome_profile)
 
 if __name__ == "__main__":
     main()
