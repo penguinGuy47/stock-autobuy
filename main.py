@@ -13,7 +13,7 @@ import wellsfargo
 def main():
     # ticker = input("Enter the ticker you would to purchase: ")
     ticker = 'AMC'
-    chrome_path = r"C:\Users\kaile\AppData\Local\Google\Chrome\User Data" # add the path to your chrome
+    chrome_path = r"C:\Users\YourUserName\AppData\Local\Google\Chrome\User Data" # add the path to your chrome
     chrome_profile = r"Profile 6" # change this accordingly
 
     # chase.buy(ticker)
