@@ -12,6 +12,7 @@ from selenium.common.exceptions import TimeoutException
 import time
 import random
 import os
+import re
 
 def human_type(word, destination):
     random_num = random.uniform(0.05,0.25)
