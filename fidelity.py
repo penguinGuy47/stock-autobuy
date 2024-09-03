@@ -1,20 +1,15 @@
 from sleep import *
 
 # ENTER YOUR CREDENTIALS
-username = ""   # ENTER YOUR USERNAME
-pw = ""         # ENTER YOUR PASSWORD
+username = ""
+pw = ""
 
 # TODO:
 # add multi buy function
 def buy(ticker, dir, prof):
-    options = webdriver.ChromeOptions()
-    options.add_argument(f"user-data-dir={dir}")
-    options.add_argument(f"--profile-directory={prof}")
-    options.add_argument("--disable-blink-features=AutomationControlled")   # bypass automation protection
-    driver = webdriver.Chrome(options=options, service=Service("chromedriver.exe"))
-    # driver.get("https://digital.fidelity.com/prgw/digital/login/full-page")
+    driver = start_headless_driver(dir, prof)
     driver.get("https://digital.fidelity.com/ftgw/digital/portfolio/summary")
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 7)
     short_sleep()
 
     username_field = driver.find_element(By.XPATH, '//*[@id="dom-username-input"]')
@@ -27,21 +22,89 @@ def buy(ticker, dir, prof):
     human_type(pw, pw_field)
     short_sleep()
 
+    print("clicking login...")
     log_in_button = driver.find_element(By.XPATH, '//*[@id="dom-login-button"]')
     log_in_button.click()
 
-    os.system('echo \a')
-    input("\n\nPlease complete 2FA if requested and then press Enter when you reach the dashboard...\n\n\n")
-    print("Logged into Fidelity!")
+    # TESTING
+    short_sleep()
+    driver.save_screenshot("headless_login_page.png")
+    rand_sleep()
+
+    # IF 2FA PAGE, PING USER (AND SAVE COOKIES?), ELSE WAIT AND CONTINUE
+    try:
+        dont_ask_again_button = wait.until(
+            EC.presence_of_element_located((By.XPATH, "//*[@id='dom-widget']/div/div[2]/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-form/s-root/div/form/s-slot/s-assigned-wrapper/div[1]/div/div/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-checkbox/s-root/div/label/div[1]')"))
+        )
+        dont_ask_again_button.click()
+
+        # send_2fa_button = wait.until(
+        #     EC.visibility_of_element_located(By.XPATH, '//*[@id="dom-push-primary-button"]')
+            
+        # )
+        # send_2fa_button.click()
+
+        send_as_text = wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="dom-try-another-way-link"]'))
+        )
+        send_as_text.click()
+
+        text_code_button = wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="dom-channel-list-primary-button"]'))
+        )
+        text_code_button.click()
+        very_short_sleep()
+
+        os.system('echo \a')
+        sent_code = input("Please enter the 2FA code sent to your phone: ")
+        code_input = wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="dom-otp-code-input"]'))
+        )
+        human_type(sent_code, code_input)
+
+        asking_again = wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="dom-widget"]/div/div[2]/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-form/s-root/div/form/s-slot/s-assigned-wrapper/div[1]/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-checkbox/s-root/div/label/div[1]'))
+        )
+        asking_again.click()
+
+        very_short_sleep()
+        submit_code = wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="dom-otp-code-submit-button"]'))
+        )
+        submit_code.click()
+    except:
+        print("Cookies are saved, continuing...")
+
+    # os.system('echo \a')
+    # input("\n\nPlease complete 2FA if requested and then press Enter when you reach the dashboard...\n\n\n")
+    # print("Logged into Fidelity!")
+
+    save_cookies(driver, "cookies.pkl")
+    short_sleep()
+
+    # driver = start_headless_driver(dir, prof)
+    # driver.get("https://digital.fidelity.com/ftgw/digital/portfolio/summary")
+    # print("starting headless session...")
+    
+    # load_cookies(driver, "cookies.pkl")
+    # driver.get("https://digital.fidelity.com/ftgw/digital/portfolio/summary")
+    # short_sleep()
+    # driver.save_screenshot("headless_trade_page.png")
 
     # click trade
     trade_button = driver.find_element(By.XPATH, '//*[@id="action-bar--container"]/div[2]/div[1]/ul/li[1]/a')
     trade_button.click()
     short_sleep()
 
+    print("clicking dropdown...")
     # click dropdown
-    account_dropdown = driver.find_element(By.XPATH, '//*[@id="dest-acct-dropdown"]')
-    account_dropdown.click()
+    try:
+        account_dropdown = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="dest-acct-dropdown"]'))
+        )
+        account_dropdown.click()
+    except:
+        print("dropdown not found")
     very_short_sleep()
 
     account_select = driver.find_element(By.XPATH, '//*[@id="ett-acct-sel-list"]')
@@ -53,6 +116,7 @@ def buy(ticker, dir, prof):
 
     # iterate through accounts
     for num in range(li_count):
+        print("iterating through accounts now...")
         if num != 0:
             account_dropdown = driver.find_element(By.XPATH, '//*[@id="dest-acct-dropdown"]')
             account_dropdown.click()
@@ -69,11 +133,13 @@ def buy(ticker, dir, prof):
         ticker_search.send_keys(Keys.ENTER)
         very_short_sleep()
 
+        print("clicking buy...")
         # click buy
         buy_button = driver.find_element(By.XPATH, '//*[@id="action-buy"]/s-root/div')
         buy_button.click()
         very_short_sleep()
 
+        print("entering qty...")
         # enter quantity
         qty = driver.find_element(By.XPATH, '//*[@id="eqt-shared-quantity"]')
         qty.send_keys("1")
@@ -100,15 +166,17 @@ def buy(ticker, dir, prof):
         human_type(current_price, limit_price)
         very_short_sleep()
 
+        print("previewing... ")
         # preview button
         preview_button = driver.find_element(By.XPATH, '//*[@id="previewOrderBtn"]/s-root/button')
         preview_button.click()
         very_short_sleep()
 
+        print("submitting...")
         # submit
         submit_button = driver.find_element(By.XPATH, '//*[@id="placeOrderBtn"]')
         submit_button.click()
-        very_short_sleep()
+        short_sleep()
 
         # enter new order
         new_order_button = driver.find_element(By.XPATH, '//*[@id="eq-ticket__enter-new-order"]')
@@ -130,12 +198,7 @@ def sell(ticker, dir, prof):
             print("Invalid input. Please enter 'all' or a number.")
         
 
-    options = webdriver.ChromeOptions()
-    options.add_argument(f"user-data-dir={dir}")
-    options.add_argument(f"--profile-directory={prof}")
-    options.add_argument("--disable-blink-features=AutomationControlled")   # bypass automation protection
-    driver = webdriver.Chrome(options=options, service=Service("chromedriver.exe"))
-    # driver.get("https://digital.fidelity.com/prgw/digital/login/full-page")
+    driver = start_headless_driver(dir, prof)
     driver.get("https://digital.fidelity.com/ftgw/digital/portfolio/summary")
     wait = WebDriverWait(driver, 10)
     short_sleep() 
