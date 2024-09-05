@@ -15,6 +15,12 @@ import pickle
 import os
 import re
 
+def restart_driver(driver):
+    driver.quit()
+    short_sleep()
+    
+    return start_headless_driver()
+
 def human_type(word, destination):
     random_num = random.uniform(0.05,0.25)
     for char in word:
@@ -59,7 +65,6 @@ def start_headless_driver(dir, prof):
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-infobars")
     options.add_argument("--disable-browser-side-navigation")
-    options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
     
     driver = webdriver.Chrome(options=options, service=Service("chromedriver.exe"))
