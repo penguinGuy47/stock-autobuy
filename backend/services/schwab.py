@@ -1,27 +1,17 @@
-from sleep import *
+from utils.sleep import *
+
+# ENTER YOUR CREDENTIALS
+username = ""   # ENTER YOUR USERNAME
+pw = ""         # ENTER YOUR PASSWORD 
 
 # TODO:
 # add multi buy function
-def buy(ticker, dir, prof):
-    options = webdriver.ChromeOptions()
-    # options.add_argument(f"user-data-dir={dir}")
-    # options.add_argument(f"--profile-directory={prof}")
-    options.add_argument("--disable-blink-features=AutomationControlled")   # bypass automation protection
-    driver = webdriver.Chrome(options=options, service=Service("chromedriver.exe"))
-    driver.get("https://client.schwab.com/Areas/Access/Login")
+def login(driver):
     wait = WebDriverWait(driver, 5)
-    short_sleep()
-
-
-    # sign in field
     try:
         driver.find_elements(By.TAG_NAME, "iframe")
         wait.until(EC.frame_to_be_available_and_switch_to_it((By.ID, "lmsIframe")))
-        
-        # ENTER YOUR CREDENTIALS
-        username = ""   # ENTER YOUR USERNAME
-        pw = ""         # ENTER YOUR PASSWORD
-        
+
         # login
         username_field = wait.until(
             EC.visibility_of_element_located((By.XPATH, '//*[@id="loginIdInput"]'))
@@ -40,6 +30,14 @@ def buy(ticker, dir, prof):
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def buy(ticker, dir, prof):
+    driver = start_regular_driver(dir, prof)
+    driver.get("https://client.schwab.com/Areas/Access/Login")
+
+    short_sleep()
+    login(driver)
+
+    # 2fa input XPATH: //*[@id="securityCode"]
     os.system('echo \a')
     input("\n\nPlease complete 2FA if requested and then press Enter when you reach the dashboard...\n\n\n")
     print("Logged into Schwab!")
@@ -113,9 +111,8 @@ def buy(ticker, dir, prof):
         driver.get("https://client.schwab.com/app/trade/tom/trade")
         short_sleep()
 
-
-
-    long_sleep()
+def sell(ticker, dir, prof):
+    pass
 
     
 

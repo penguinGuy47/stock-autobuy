@@ -15,6 +15,8 @@ import pickle
 import os
 import re
 
+chromedriver_path = os.path.join(os.path.dirname(__file__), "../../drivers/chromedriver.exe")
+
 def restart_driver(driver):
     driver.quit()
     short_sleep()
@@ -67,7 +69,7 @@ def start_headless_driver(dir, prof):
     options.add_argument("--disable-browser-side-navigation")
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
     
-    driver = webdriver.Chrome(options=options, service=Service("chromedriver.exe"))
+    driver = webdriver.Chrome(options=options, service=Service(chromedriver_path))
     return driver
 
 def start_regular_driver(dir, prof):
@@ -84,7 +86,7 @@ def start_regular_driver(dir, prof):
     options.add_argument("--disable-browser-side-navigation")
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
     
-    driver = webdriver.Chrome(options=options, service=Service("chromedriver.exe"))
+    driver = webdriver.Chrome(options=options, service=Service(chromedriver_path))
     return driver
 
 def save_cookies(driver, path):
