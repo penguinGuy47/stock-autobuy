@@ -1,7 +1,10 @@
-from sleep import *
+from utils.sleep import *
 
 import time
-import sleep
+
+# ENTER YOUR CREDENTIALS
+username = ""   # ENTER YOUR USERNAME
+pw = ""         # ENTER YOUR PASSWORD
 
 # TODO:
 # add multi buy function
@@ -14,10 +17,6 @@ def buy(ticker):
     login_button = driver.find_element(By.XPATH, "//a[contains(@class, 'ml-8') and contains(text(), 'Login')]")
     login_button.click()
 
-    # ENTER YOUR CREDENTIALS
-    username = ""   # ENTER YOUR USERNAME
-    pw = ""         # ENTER YOUR PASSWORD
-
     login_field = driver.find_element(By.NAME, "username")
     for char in username:
         login_field.send_keys(char)
@@ -28,13 +27,13 @@ def buy(ticker):
         pw_field.send_keys(char)
         time.sleep(0.1) 
 
-    sleep.very_short_sleep()
+    very_short_sleep()
 
     # sign in button
     sign_in_button = driver.find_element(By.XPATH, "//button[contains(text(),'Sign In')]")
     sign_in_button.click()
 
-    sleep.short_sleep()
+    short_sleep()
 
     os.system('echo \a')
     input("\n\nPlease complete 2FA if requested and then press Enter when you reach the dashboard...\n\n\n")
@@ -72,7 +71,7 @@ def buy(ticker):
                             account_id = account.get_attribute('id')
                             purchase_acc = wait.until(EC.element_to_be_clickable((By.ID, account_id)))
                             purchase_acc.click()
-                            sleep.short_sleep()
+                            short_sleep()
 
                             # reopen dropdown to get account element
                             account_dropdown = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="headlessui-menu-button-3"]/div')))
@@ -81,14 +80,14 @@ def buy(ticker):
                     except:
                         pass
 
-                    sleep.rand_sleep()
+                    rand_sleep()
 
                     bought_accounts.add(account_text)
                     print('\n\n\nBought Account:')
                     print(bought_accounts)
                     print('\n\n\n')
         
-                    sleep.short_sleep()
+                    short_sleep()
 
                     # buy operations
                     ticker_search = driver.find_element(By.NAME, "quote_module_symbol_search")
@@ -96,16 +95,16 @@ def buy(ticker):
                         ticker_search.send_keys(char)
                         time.sleep(0.1) 
 
-                    sleep.short_sleep()
+                    short_sleep()
 
                     ticker_search.send_keys(Keys.ENTER)
 
-                    sleep.short_sleep()
+                    short_sleep()
 
                     trade_button = driver.find_element(By.XPATH, "//button[contains(@class, 'button') and contains(@class, 'success') and contains(@class, 'lg')]")
                     trade_button.click()
 
-                    sleep.short_sleep()
+                    short_sleep()
 
                     buy_dropdown = wait.until(
                         EC.visibility_of_element_located((By.XPATH, '//*[@id="app"]/div/div/main/div/div/div[1]/div[2]/div[1]/div[1]/form/div[1]/div[1]/div[1]/label/div/select'))
@@ -114,7 +113,7 @@ def buy(ticker):
                     select = Select(buy_dropdown)
                     select.select_by_visible_text("Buy")
 
-                    sleep.short_sleep()
+                    short_sleep()
 
                     # quantity of shares to purchase
                     quantity_field = wait.until(
@@ -123,18 +122,18 @@ def buy(ticker):
                     quantity_field.send_keys("1")
 
                     # PREVIEW
-                    sleep.very_short_sleep()
+                    very_short_sleep()
                     preview_button = driver.find_element(By.XPATH, '//*[@id="app"]/div/div/main/div/div/div[1]/div[2]/div[1]/div[1]/form/div[2]/div/div/button[2]')
                     preview_button.click()
 
                     # SUBMIT
-                    sleep.very_short_sleep()
+                    very_short_sleep()
                     submit_button = driver.find_element(By.XPATH, '//*[@id="app"]/div/div/main/div/div/div[1]/div[2]/div[1]/div[1]/form/div[2]/div/div/button[3]')
                     submit_button.click()
 
                     print(f'Order successfully placed for "{ticker}" on Tradier!')
 
-                    sleep.short_sleep()
+                    short_sleep()
 
                     if len(bought_accounts) is len(accounts):
                         print("No more accounts to process.")
@@ -143,7 +142,7 @@ def buy(ticker):
 
                     # RELOAD
                     driver.get('https://dash.tradier.com/dashboard')
-                    sleep.rand_sleep()
+                    rand_sleep()
 
                     account_dropdown = wait.until(
                         EC.element_to_be_clickable((By.XPATH, '//*[@id="headlessui-menu-button-3"]/div'))

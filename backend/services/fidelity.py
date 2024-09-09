@@ -1,4 +1,4 @@
-from sleep import *
+from utils.sleep import *
 
 # ENTER YOUR CREDENTIALS
 username = ""   # ENTER YOUR USERNAME

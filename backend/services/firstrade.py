@@ -1,4 +1,8 @@
-from sleep import *
+from utils.sleep import *
+
+# ENTER YOUR CREDENTIALS
+username = ""   # ENTER YOUR USERNAME
+pw = ""         # ENTER YOUR PASSWORD
 
 # TODO:
 # add multi buy function
@@ -11,10 +15,6 @@ def buy(ticker, dir, prof):
     driver.get("https://invest.firstrade.com/cgi-bin/login")
     wait = WebDriverWait(driver, 10)
     short_sleep()
-
-    # ENTER YOUR CREDENTIALS
-    username = ""   # ENTER YOUR USERNAME
-    pw = ""         # ENTER YOUR PASSWORD
 
     username_field = driver.find_element(By.XPATH, '//*[@id="username"]')
     username_field.click()
