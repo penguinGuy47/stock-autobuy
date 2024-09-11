@@ -198,6 +198,7 @@ def sell(ticker, dir, prof):
         ticker_search(driver, ticker)
 
         # click sell
+        print("clicking sell...")
         sell_button = driver.find_element(By.XPATH, '//*[@id="action-sell"]/s-root/div')
         sell_button.click()
         very_short_sleep()
@@ -237,7 +238,6 @@ def sell(ticker, dir, prof):
         preview_and_submit(driver)
 
         start_new_order(driver)
-        short_sleep()
         
     print("No more accounts to process.")
     driver.quit()
