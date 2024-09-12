@@ -7,15 +7,61 @@ pw = ""         # ENTER YOUR PASSWORD
 # TODO:
 # add multi buy function
 def buy(ticker, dir, prof):
-    options = webdriver.ChromeOptions()
-    options.add_argument(f"user-data-dir={dir}")
-    options.add_argument(f"--profile-directory={prof}") # add 
-    options.add_argument("--disable-blink-features=AutomationControlled")   # bypass automation protection
-    driver = webdriver.Chrome(options=options, service=Service("chromedriver.exe"))
+    while True:
+        trade_share_count = input("How many shares would you like to buy? Enter an amount: ")
+        
+        if re.fullmatch(r'\d+', trade_share_count):
+            break
+        else:
+            print("Invalid input. Please enter a valid number.")
+            
+    driver = start_regular_driver(dir, prof)
     driver.get("https://invest.firstrade.com/cgi-bin/login")
-    wait = WebDriverWait(driver, 10)
+    login(driver)
     short_sleep()
+    try:
+        account_dropdown = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="head"]/ul/li[7]/div'))
+        )
+        account_dropdown.click()
+        short_sleep()
+        accounts_column = driver.find_elements(By.XPATH, '//*[@id="headcontent"]/div[3]/div[2]/table/tbody//a')
+    except:
+        print("Error finding number of accounts...")
 
+    bought_accounts = set()
+    for account in range(1, len(accounts_column) + 1):
+        setup_trade(driver, account, bought_accounts, ticker)
+
+        # buy button
+        try:
+            buy_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="maincontent"]/div/div[2]/div[1]/div[3]/button[1]'))
+            )
+            buy_button.click()
+            short_sleep()
+        except:
+            print("\n\nError in clicking buy button...\n\n")
+
+        enter_qty(driver, trade_share_count)
+        submit_order(driver)
+        
+    print("No more accounts to process.")
+    driver.quit()
+
+
+def sell(ticker, dir, prof):
+    while True:
+        trade_share_count = input("How many shares would you like to buy? Enter an amount: ")
+        
+        if re.fullmatch(r'\d+', trade_share_count):
+            break
+        else:
+            print("Invalid input. Please enter a valid number.")
+
+
+# login and 2FA handling
+def login(driver):
     username_field = driver.find_element(By.XPATH, '//*[@id="username"]')
     username_field.click()
     human_type(username, username_field)
@@ -27,32 +73,59 @@ def buy(ticker, dir, prof):
     submit_button = driver.find_element(By.XPATH, '//*[@id="loginButton"]')
     submit_button.click()
 
-    os.system('echo \a')
-    input("\n\nPlease complete 2FA if requested and then press Enter when you reach the dashboard...\n\n\n")
-    print("Logged into First Trade!")
-    short_sleep()
+    try:
+        send_by_text = WebDriverWait(driver, 24).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="form-recipients"]/label[2]/div/div[1]/input'))
+        )
+        send_by_text.click()
+        send_code = WebDriverWait(driver, 24).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="send-code"]'))
+        )
+        send_code.click()
 
-    account_dropdown = driver.find_element(By.XPATH, '//*[@id="head"]/ul/li[7]/div')
-    account_dropdown.click()
+        verify_code = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="code"]'))
+        )
 
-    short_sleep()
+        code = input("Please enter the 2FA code sent to your phone: ")
+        human_type(code, verify_code)
 
-    accounts_column = driver.find_elements(By.XPATH, '//*[@id="headcontent"]/div[3]/div[2]/table/tbody//a')
+        submit_code = driver.find_element(By.XPATH, '//*[@id="verify-code"]')
+        submit_code.click()
+        print("Logged into First Trade!")
+    except:
+        print("2FA authentication failed.")
 
-    bought_accounts = set()
-    for account in range(1, len(accounts_column) + 1):
-        if account != 1:
-            account_dropdown = driver.find_element(By.XPATH, '//*[@id="head"]/ul/li[7]/div')
-            account_dropdown.click()
+# gets the number of accounts needed to iterate through
+def get_num_accounts(driver):
+    try:
+        account_dropdown = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="head"]/ul/li[7]/div'))
+        )
+        account_dropdown.click()
+        very_short_sleep()
+        accounts_column = driver.find_element(By.XPATH, '//*[@id="headcontent"]/div[3]/div[2]/table/tbody//a')
+        return accounts_column
+    except:
+        print("Error finding number of accounts...")
 
-            short_sleep()
-
-        current_account = driver.find_element(By.XPATH, f'//*[@id="headcontent"]/div[3]/div[2]/table/tbody/tr[{account}]/th/a')
+# sets up trade by inputting ticker and searching
+def setup_trade(driver, account, bought_accounts, ticker):
+    if account != 1:
+            try:
+                account_dropdown = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, '//*[@id="head"]/ul/li[7]/div'))
+                )
+                account_dropdown.click()
+                short_sleep()
+            except:
+                print("\n\nError in clicking dropdown...\n\n")
+    try:
+        current_account = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, f'//*[@id="headcontent"]/div[3]/div[2]/table/tbody/tr[{account}]/th/a'))
+        )
         bought_accounts.add(current_account.text)
         current_account.click()
-
-        print("Bought accounts: ")
-        print(bought_accounts)
         short_sleep()
 
         # input ticker
@@ -63,31 +136,33 @@ def buy(ticker, dir, prof):
         very_short_sleep()
 
         # click on search
-        ticker_search = driver.find_element(By.XPATH, '//*[@id="id-searchbtngo"]')
+        ticker_search = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="id-searchbtngo"]'))
+        )
         ticker_search.click()
         short_sleep()
+    except:
+        print("\n\nError in setting up trade...\n\n")
 
-        # buy button
-        buy_button = driver.find_element(By.XPATH, '//*[@id="maincontent"]/div/div[2]/div[1]/div[3]/button[1]')
-        buy_button.click()
-        short_sleep()
-
-        # qty
-        share_qty = driver.find_element(By.XPATH, '//*[@id="quantity"]')
+# enters the quantity
+def enter_qty(driver, qty):
+    # qty
+    try:
+        share_qty = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="quantity"]'))
+        )
         human_type("1", share_qty)
-        very_short_sleep()
+    except:
+        print("\n\nError in entering the quantity...\n\n")
 
-        # send order (submit)
-        send_button = driver.find_element(By.XPATH, '//*[@id="submitOrder"]')
+# submits the trade
+def submit_order(driver):
+    # send order (submit)
+    try:
+        send_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="submitOrder"]'))
+        )
         send_button.click()
         short_sleep()
-
-
-
-
-    long_sleep()
-    
-    print("No more accounts to process.")
-    driver.quit()
-    exit()
-
+    except:
+        print("\n\nError in submitting order...\n\n")
