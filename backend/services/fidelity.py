@@ -116,9 +116,9 @@ def buy(ticker, dir, prof):
     account_count = getNumOfAccounts(driver)
     very_short_sleep()
 
-    # iterate through accounts
+    print("iterating through accounts now...")
     for num in range(account_count):
-        print("iterating through accounts now...")
+        
         if num != 0:
             account_dropdown = driver.find_element(By.XPATH, '//*[@id="dest-acct-dropdown"]')
             account_dropdown.click()
@@ -186,7 +186,7 @@ def sell(ticker, dir, prof):
     account_count = getNumOfAccounts(driver)
     very_short_sleep()
 
-    # iterate through accounts
+    print("iterating through accounts now...")
     for num in range(account_count):
         if num != 0:
             account_dropdown = driver.find_element(By.XPATH, '//*[@id="dest-acct-dropdown"]')
