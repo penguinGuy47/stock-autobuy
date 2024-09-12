@@ -1,6 +1,6 @@
 from services.chase import *
 from services.fidelity import *
-from services.firstrade import *
+from services.firstrade import buy as firstrade_buy
 from services.public import *
 from services.robinhood import buy as robinhood_buy
 from services.schwab import buy as schwab_buy
@@ -25,9 +25,9 @@ def main():
     # fidelity.buy(ticker, chrome_path, chrome_profile)
     # fidelity.sell(ticker, chrome_path, chrome_profile)
 
-    # firstrade.buy(ticker, chrome_path, chrome_profile)
+    firstrade_buy(ticker, chrome_path, chrome_profile)
 
-    schwab_buy(ticker, chrome_path, chrome_profile)
+    # schwab_buy(ticker, chrome_path, chrome_profile)
 
     # sofi.buy(ticker, chrome_path, chrome_profile)
 
