@@ -15,7 +15,7 @@ def buy(ticker, dir, prof):
         else:
             print("Invalid input. Please enter a valid number.")
             
-    driver = start_regular_driver(dir, prof)
+    driver = start_headless_driver(dir, prof)
     driver.get("https://invest.firstrade.com/cgi-bin/login")
     login(driver)
     short_sleep()
