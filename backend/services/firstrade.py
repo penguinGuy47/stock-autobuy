@@ -52,12 +52,46 @@ def buy(ticker, dir, prof):
 
 def sell(ticker, dir, prof):
     while True:
-        trade_share_count = input("How many shares would you like to buy? Enter an amount: ")
+        trade_share_count = input("How many shares would you like to sell? Enter an amount: ")
         
         if re.fullmatch(r'\d+', trade_share_count):
             break
         else:
             print("Invalid input. Please enter a valid number.")
+
+    driver = start_headless_driver(dir, prof)
+    driver.get("https://invest.firstrade.com/cgi-bin/login")
+    login(driver)
+    short_sleep()
+    try:
+        account_dropdown = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="head"]/ul/li[7]/div'))
+        )
+        account_dropdown.click()
+        short_sleep()
+        accounts_column = driver.find_elements(By.XPATH, '//*[@id="headcontent"]/div[3]/div[2]/table/tbody//a')
+    except:
+        print("Error finding number of accounts...")
+
+    bought_accounts = set()
+    for account in range(1, len(accounts_column) + 1):
+        setup_trade(driver, account, bought_accounts, ticker)
+
+        # sell button
+        try:
+            sell_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="maincontent"]/div/div[2]/div[1]/div[3]/button[2]'))
+            )
+            sell_button.click()
+            short_sleep()
+        except:
+            print("\n\nError in clicking buy button...\n\n")
+
+        enter_qty(driver, trade_share_count)
+        submit_order(driver)
+        
+    print("No more accounts to process.")
+    driver.quit()
 
 
 # login and 2FA handling
