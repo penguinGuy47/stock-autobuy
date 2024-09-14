@@ -4,13 +4,14 @@ from utils.sleep import *
 username = ""   # ENTER YOUR EMAIL
 pw = ""         # ENTER YOUR PASSWORD
 
+
 # TODO:
 # address cookie saving/loading
 # add buy
 # add account switching
 # add multi buy function
 def buy(ticker, dir, prof, qty):
-    driver = start_headless_driver(dir, prof)
+    driver = start_regular_driver(dir, prof)
     # driver = start_headless_driver(dir, prof)
     driver.get("https://robinhood.com/us/en/")
     short_sleep()
@@ -35,7 +36,7 @@ def buy(ticker, dir, prof, qty):
 
 
 def sell(ticker, dir, prof, qty):
-    driver = start_regular_driver(dir, prof)
+    driver = start_headless_driver(dir, prof)
     driver.get("https://robinhood.com/login/")
     short_sleep()
     login(driver)
@@ -79,8 +80,8 @@ def login(driver):
         os.system('echo \a')
         # App Noti 2FA
         try: 
-            # waits up to 30 seconds for user to accept notification
-            WebDriverWait(driver, 30).until(
+            # waits up to 60 seconds for user to accept notification
+            WebDriverWait(driver, 60).until(
                 EC.url_to_be("https://robinhood.com/")
             )
         except TimeoutException:
@@ -148,44 +149,77 @@ def enter_share_qty(driver, qty):
 
     print("Entering share qty...")
     # enter number of shares shares
-    shares_qty = driver.find_element(By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/div[2]/div/div[3]/div/div/div/div/input')
+    short_sleep()
+
+    # shares_qty = WebDriverWait(driver,100).until(
+    #     # EC.element_to_be_clickable((By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/div[2]/div/div[3]/div/div/div/div/input'))
+    #     EC.visibility_of_element_located((By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[2]/form/div[2]/div/div[2]/div/div/div/div'))
+    # )
+
+    shares_qty = driver.find_element(By.XPATH, '/html/body/div[1]/main/div[2]/div/div/div/div/main/div/aside/div[2]/form/div[2]/div/div[2]/div/div/div/div/input')
+    shares_qty.click()
     human_type(qty, shares_qty)
     very_short_sleep()
 
+        # print("Error entering share quantity...")
+
 
 def submit_order(driver):
-    submit_button = driver.find_element(By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/div[3]/div/div[2]/div/div/button')
-    submit_button.click()
-    very_short_sleep()
-    verify_submit = driver.find_element(By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/div[3]/div/div[2]/div[1]/div/button')
-    verify_submit.click()
-    very_short_sleep()
-    done_button = driver.find_element(By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/div/div[3]/div/button')
-    done_button.click()
-    short_sleep()
+    # review order button for penny stocks: //*[@id="sdp-ticker-symbol-highlight"]/div[2]/form/div[3]/div/div[2]/div/div/button
+    # //*[@id="sdp-ticker-symbol-highlight"]/div[2]/form/div[3]/div/div[2]/div[1]/div/button
+    # review order button for non-penny stocks: submit_button = driver.find_element(By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/div[3]/div/div[2]/div/div/button')
+    # submit order button for non-penny stocks: //*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/div[3]/div/div[2]/div[1]/div/button
+    wait = WebDriverWait(driver, 10)
+    try:
+        submit_button = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/div[3]/div/div[2]/div/div/button'))
+        )
+        submit_button.click()
+        very_short_sleep()
+        verify_submit = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/div[3]/div/div[2]/div[1]/div/button'))
+        )
+        verify_submit.click()
+        done_button = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/div/div[3]/div/button'))
+        )
+        done_button.click()
+        short_sleep()
+    except:
+        print("error submitting order...")
 
 def get_num_accounts(driver):
     print("Getting all your accounts...")
-    initial_dropdown = driver.find_element(By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/button')
-    initial_dropdown.click()
-    very_short_sleep()
-
-    div = driver.find_element(By.XPATH, '//*[@id="account-switcher-popover"]/div')
-    accounts = div.find_elements(By.TAG_NAME, 'button')
-    num_accounts = len(accounts)
-
-    return num_accounts 
+    try:
+        initial_dropdown = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[2]/form/button'))
+        )
+        initial_dropdown.click()
+        very_short_sleep()
+        div = driver.find_element(By.XPATH, '//*[@id="account-switcher-popover"]/div')
+        accounts = div.find_elements(By.TAG_NAME, 'button')
+        num_accounts = len(accounts)
+        return num_accounts+""
+    except:
+        print("Could not locate dropdown...")
 
 def switch_accounts(driver, account_num):
     # //*[@id="account-switcher-popover"]/div/button[1]
     # //*[@id="account-switcher-popover"]/div/button[2]
-    initial_dropdown = driver.find_element(By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/button')
-    initial_dropdown.click()
-    very_short_sleep()
-    next_account = driver.find_element(By.XPATH, f'//*[@id="account-switcher-popover"]/div/button[{account_num}]')
-    next_account.click()
-    short_sleep()
-    pass
+    try:
+        initial_dropdown = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="sdp-ticker-symbol-highlight"]/div[1]/form/button'))
+        )
+        initial_dropdown.click()
+        
+        next_account = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, f'//*[@id="account-switcher-popover"]/div/button[{account_num}]'))
+        )
+        next_account.click()
+        short_sleep()
+        pass
+    except:
+        print("Error switching accounts...")
     
 
 
