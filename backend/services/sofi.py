@@ -1,5 +1,9 @@
 from utils.sleep import *
 
+# ENTER YOUR CREDENTIALS
+email = ""   # ENTER YOUR EMAIL
+pw = ""         # ENTER YOUR PASSWORD
+
 # TODO:
 # get past cloudflare bot protection
 # add login
@@ -20,10 +24,6 @@ def buy(ticker, dir, prof):
     driver.get("https://login.sofi.com/u/login?state=hKFo2SBMaFhNak5SOHJMRUM3RlZGeHFGTjNFcmRXeElOVkY1bqFur3VuaXZlcnNhbC1sb2dpbqN0aWTZIHV5bXFzQTZBZjdSaXM1X0VtLWdpSFY5OW1hUExJSFpko2NpZNkgNkxuc0xDc2ZGRUVMbDlTQzBDaWNPdkdlb2JvZXFab2I")
     wait = WebDriverWait(driver, 10)
     long_sleep()
-
-    # ENTER YOUR CREDENTIALS
-    email = ""   # ENTER YOUR EMAIL
-    pw = ""         # ENTER YOUR PASSWORD
 
     # click on log in tab
     # login_tab = driver.find_element(By.XPATH, '//*[@id="main-nav-login-link"]')
