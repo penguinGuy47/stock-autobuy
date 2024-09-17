@@ -4,8 +4,11 @@ from utils.sleep import *
 username = ""   # ENTER YOUR USERNAME
 pw = ""         # ENTER YOUR PASSWORD
 
+
 # TODO:
+# fix account switching after order for buying
 # add multi buy function
+# change qty input to main
 def buy(ticker, dir, prof):
     while True:
         trade_share_count = input("How many shares would you like to buy? Enter an amount: ")
@@ -15,7 +18,7 @@ def buy(ticker, dir, prof):
         else:
             print("Invalid input. Please enter a valid number.")
             
-    driver = start_headless_driver(dir, prof)
+    driver = start_regular_driver(dir, prof)
     driver.get("https://invest.firstrade.com/cgi-bin/login")
     login(driver)
     short_sleep()
@@ -59,7 +62,7 @@ def sell(ticker, dir, prof):
         else:
             print("Invalid input. Please enter a valid number.")
 
-    driver = start_headless_driver(dir, prof)
+    driver = start_regular_driver(dir, prof)
     driver.get("https://invest.firstrade.com/cgi-bin/login")
     login(driver)
     short_sleep()
@@ -185,6 +188,7 @@ def enter_qty(driver, qty):
         share_qty = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, '//*[@id="quantity"]'))
         )
+        share_qty.send_keys(Keys.CLEAR)
         human_type("1", share_qty)
     except:
         print("\n\nError in entering the quantity...\n\n")
