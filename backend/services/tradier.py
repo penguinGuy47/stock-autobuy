@@ -6,10 +6,12 @@ import time
 username = ""   # ENTER YOUR USERNAME
 pw = ""         # ENTER YOUR PASSWORD
 
+
 # TODO:
 # add multi buy function
-def buy(ticker):
-    driver = webdriver.Chrome(service=Service("chromedriver.exe"))
+# fix errors
+def buy(ticker, dir, prof):
+    driver = start_regular_driver(dir, prof)
     driver.get("https://www.tradier.com/")
     wait = WebDriverWait(driver, 10)
 
@@ -40,7 +42,8 @@ def buy(ticker):
     print("Logged into Tradier!")
 
     # click dropdown to show accounts
-    account_dropdown = driver.find_element(By.XPATH, '//*[@id="headlessui-menu-button-3"]/div')
+    short_sleep()
+    account_dropdown = driver.find_element(By.XPATH, '//*[@id="headlessui-menu-button-3"]')
     account_dropdown.click()
 
     # keep track of the accounts we have already bought on
@@ -49,6 +52,7 @@ def buy(ticker):
     while True:
         # obtain account buttons
         try:
+
             accounts = wait.until(
                 EC.presence_of_all_elements_located((By.XPATH, '//*[@id="headlessui-menu-items-4"]/div[1]//button'))
             )
@@ -56,7 +60,6 @@ def buy(ticker):
             for account in accounts:
                 try:       
                     account_text = account.text.strip()
-
                     # skip if already processed
                     if account_text in bought_accounts:
                         print(f"Skipping account: {account_text}")
@@ -133,7 +136,7 @@ def buy(ticker):
 
                     print(f'Order successfully placed for "{ticker}" on Tradier!')
 
-                    short_sleep()
+                    short_sleep() 
 
                     if len(bought_accounts) is len(accounts):
                         print("No more accounts to process.")
@@ -143,12 +146,15 @@ def buy(ticker):
                     # RELOAD
                     driver.get('https://dash.tradier.com/dashboard')
                     rand_sleep()
-
-                    account_dropdown = wait.until(
-                        EC.element_to_be_clickable((By.XPATH, '//*[@id="headlessui-menu-button-3"]/div'))
-                    )
-                    account_dropdown.click()
-                    break
+                    try:
+                        account_dropdown = wait.until(
+                            EC.element_to_be_clickable((By.XPATH, '/html/body/div[1]/div/div/header/div/div[2]/div/div[3]/div/button'))
+                        )
+                        account_dropdown.click()
+                        break
+                    except Exception as e:
+                        print("not clickable!!!!")
+                        # time.sleep(10000)
 
                 except Exception as e:
                     print(e)
@@ -157,3 +163,6 @@ def buy(ticker):
         except Exception as e:
             print(e)
             continue
+
+def sell(ticker):
+    pass

@@ -5,6 +5,7 @@ username = ""   # ENTER YOUR USERNAME
 pw = ""         # ENTER YOUR PASSWORD
 
 
+
 # TODO:
 # fix account switching after order for buying
 # add multi buy function
@@ -99,18 +100,22 @@ def sell(ticker, dir, prof):
 
 # login and 2FA handling
 def login(driver):
-    username_field = driver.find_element(By.XPATH, '//*[@id="username"]')
-    username_field.click()
-    human_type(username, username_field)
-
-    pw_field = driver.find_element(By.XPATH, '//*[@id="password"]')
-    human_type(pw, pw_field)
-    short_sleep()
-
-    submit_button = driver.find_element(By.XPATH, '//*[@id="loginButton"]')
-    submit_button.click()
-
     try:
+        username_field = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="username"]'))
+        )
+        username_field.click()
+        human_type(username, username_field)
+
+        pw_field = driver.find_element(By.XPATH, '//*[@id="password"]')
+        human_type(pw, pw_field)
+        short_sleep()
+
+        submit_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="loginButton"]'))
+        )
+        submit_button.click()
+
         send_by_text = WebDriverWait(driver, 24).until(
             EC.element_to_be_clickable((By.XPATH, '//*[@id="form-recipients"]/label[2]/div/div[1]/input'))
         )
