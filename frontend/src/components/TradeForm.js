@@ -1,86 +1,130 @@
 import React, { useState } from 'react';
+import api from '../services/api';
+import { toast } from 'react-toastify';
 
-function TradingUI() {
-  const [useUniversalTicker, setUseUniversalTicker] = useState(true);
-  const [universalTicker, setUniversalTicker] = useState('');
-  const [brokers, setBrokers] = useState([
-    { name: 'Chase', enabled: false, ticker: '' },
-    { name: 'Fidelity', enabled: false, ticker: '' },
-    { name: 'First Trade', enabled: false, ticker: '' },
-    // { name: 'Public', enabled: false, ticker: '' },
-    { name: 'Robinhood', enabled: false, ticker: '' },
-    { name: 'Schwab', enabled: false, ticker: '' },
-    { name: 'Tradier', enabled: false, ticker: '' },
-  ]);
+function TradeForm({ action }) {
+  const [ticker, setTicker] = useState('');
+  const [broker, setBroker] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleBrokerToggle = (index) => {
-    const updatedBrokers = [...brokers];
-    updatedBrokers[index].enabled = !updatedBrokers[index].enabled;
-    setBrokers(updatedBrokers);
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const handleIndividualTickerChange = (index, value) => {
-    const updatedBrokers = [...brokers];
-    updatedBrokers[index].ticker = value;
-    setBrokers(updatedBrokers);
-  };
+    // Basic validation
+    if (!ticker || !broker || !quantity || !username || !password) {
+      toast.error('Please fill in all fields.');
+      return;
+    }
 
-  const handleUniversalTickerChange = (value) => {
-    setUniversalTicker(value);
-  };
+    // Additional validation for quantity
+    if (!/^\d+$/.test(quantity) || parseInt(quantity) <= 0) {
+      toast.error('Please enter a valid quantity.');
+      return;
+    }
 
-  const handleUniversalToggle = () => {
-    setUseUniversalTicker(!useUniversalTicker);
+    setLoading(true);
+    try {
+      const endpoint = action === 'buy' ? '/buy' : '/sell';
+      const payload = { ticker, broker, quantity: parseInt(quantity), username, password };
+      const response = await api.post(endpoint, payload);
+      toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} successful.`);
+      // Reset form fields
+      setTicker('');
+      setBroker('');
+      setQuantity('');
+      setUsername('');
+      setPassword('');
+    } catch (error) {
+      console.error(`${action} failed:`, error.response ? error.response.data : error.message);
+      toast.error(`${action.charAt(0).toUpperCase() + action.slice(1)} failed: ${error.response?.data?.error || 'Unknown error.'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div>
-      <h2>Trading Setup</h2>
-      
-      {/* Universal Ticker Input */}
-      <label>
+    <div style={styles.container}>
+      <h3>{action.charAt(0).toUpperCase() + action.slice(1)} Stock</h3>
+      <form onSubmit={handleSubmit} style={styles.form}>
         <input
-          type="checkbox"
-          checked={useUniversalTicker}
-          onChange={handleUniversalToggle}
+          type="text"
+          placeholder="Ticker Symbol"
+          value={ticker}
+          onChange={(e) => setTicker(e.target.value.toUpperCase())}
+          required
+          style={styles.input}
         />
-        Use Universal Ticker
-      </label>
-      <br />
-      <input
-        type="text"
-        value={universalTicker}
-        onChange={(e) => handleUniversalTickerChange(e.target.value)}
-        disabled={!useUniversalTicker}
-        placeholder="Universal Ticker"
-      />
-
-      {/* Brokers List */}
-      {brokers.map((broker, index) => (
-        <div key={index}>
-            <br />
-            <hr />
-            <h3>{broker.name}</h3>
-            <label>
-                <input
-                type="checkbox"
-                checked={broker.enabled}
-                onChange={() => handleBrokerToggle(index)}
-                />
-                Enable Trade
-            </label>
-            <br />
-            <input
-                type="text"
-                value={broker.ticker}
-                onChange={(e) => handleIndividualTickerChange(index, e.target.value)}
-                disabled={useUniversalTicker || !broker.enabled}
-                placeholder={`${broker.name} Ticker`}
-            />
-        </div>
-      ))}
+        <select
+          value={broker}
+          onChange={(e) => setBroker(e.target.value)}
+          required
+          style={styles.input}
+        >
+          <option value="">Select Broker</option>
+          <option value="chase">Chase</option>
+          <option value="fidelity">Fidelity</option>
+          <option value="schwab">Schwab</option>
+          {/* Add other brokers as needed */}
+        </select>
+        <input
+          type="number"
+          placeholder="Quantity"
+          value={quantity}
+          onChange={(e) => setQuantity(e.target.value)}
+          min="1"
+          required
+          style={styles.input}
+        />
+        <input
+          type="text"
+          placeholder="Broker Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+          style={styles.input}
+        />
+        <input
+          type="password"
+          placeholder="Broker Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          style={styles.input}
+        />
+        <button type="submit" style={styles.button} disabled={loading}>
+          {loading ? 'Processing...' : action.charAt(0).toUpperCase() + action.slice(1)}
+        </button>
+      </form>
     </div>
   );
 }
 
-export default TradingUI;
+const styles = {
+  container: {
+    maxWidth: '500px',
+    margin: '1rem auto',
+    padding: '1rem',
+    border: '1px solid #ccc',
+    borderRadius: '5px',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  input: {
+    padding: '0.5rem',
+    margin: '0.5rem 0',
+  },
+  button: {
+    padding: '0.5rem',
+    backgroundColor: '#282c34',
+    color: 'white',
+    border: 'none',
+    cursor: 'pointer',
+  },
+};
+
+export default TradeForm;
