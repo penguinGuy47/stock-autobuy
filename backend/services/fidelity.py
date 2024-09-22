@@ -33,47 +33,51 @@ def login(driver):
         dont_ask_again_button.click()
         very_short_sleep()
         # 2FA BY TEXT:
-        # 
-        #     send_as_text = wait.until(
-        #         EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-try-another-way-link"]'))
-        #     )
-        #     send_as_text.click()
+        try:    
+            send_as_text = wait.until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-try-another-way-link"]'))
+            )
+            send_as_text.click()
 
-        #     print("clicked send as txt")
+            print("clicked send as txt")
 
-        #     text_code_button = wait.until(
-        #         EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-channel-list-primary-button"]'))
-        #     )
-        #     text_code_button.click()
-        #     very_short_sleep()
+            text_code_button = wait.until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-channel-list-primary-button"]'))
+            )
+            text_code_button.click()
+            very_short_sleep()
 
-        #     os.system('echo \a')
-        #     sent_code = input("Please enter the 2FA code sent to your phone: ")
-        #     code_input = wait.until(
-        #         EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-otp-code-input"]'))
-        #     )
-        #     human_type(sent_code, code_input)
+            os.system('echo \a')
+            sent_code = input("Please enter the 2FA code sent to your phone: ")
+            code_input = wait.until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-otp-code-input"]'))
+            )
+            human_type(sent_code, code_input)
 
-        #     asking_again = wait.until(
-        #         EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-widget"]/div/div[2]/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-form/s-root/div/form/s-slot/s-assigned-wrapper/div[1]/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-checkbox/s-root/div/label/div[1]'))
-        #     )
-        #     asking_again.click()
+            asking_again = wait.until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-widget"]/div/div[2]/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-form/s-root/div/form/s-slot/s-assigned-wrapper/div[1]/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-checkbox/s-root/div/label/div[1]'))
+            )
+            asking_again.click()
 
-        #     very_short_sleep()
-        #     submit_code = wait.until(
-        #         EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-otp-code-submit-button"]'))
-        #     )
-        #     submit_code.click()
-
-        # 2FA BY APP:
-        send_2fa_button = wait.until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-push-primary-button"]'))
-        )
-        send_2fa_button.click()
-        print("\n\nPlease approve the notification sent to your Fidelity app\n\n")
-        os.system('echo \a')
+            very_short_sleep()
+            submit_code = wait.until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-otp-code-submit-button"]'))
+            )
+            submit_code.click()
+        except:
+            print("Error sending 2FA as text...")
+            try:    
+                # 2FA BY APP:
+                send_2fa_button = wait.until(
+                    EC.element_to_be_clickable((By.XPATH, '//*[@id="dom-push-primary-button"]'))
+                )
+                send_2fa_button.click()
+                print("\n\nPlease approve the notification sent to your Fidelity app\n\n")
+                os.system('echo \a')
+            except:
+                print("Error sending 2FA to app...")
     except:
-        print("Cookies are saved, continuing...")
+        print("Error completing 2FA...")
 
     save_cookies(driver, "f_cookies.pkl")
     short_sleep()
@@ -101,16 +105,8 @@ def login(driver):
 
 # TODO:
 # add multi buy function
-def buy(ticker, dir, prof):
-    while True:
-        trade_share_count = input("How many shares would you like to buy? Enter an amount: ")
-        
-        if re.fullmatch(r'\d+', trade_share_count):
-            break
-        else:
-            print("Invalid input. Please enter a valid number.")
-
-    driver = start_headless_driver(dir, prof)
+def buy(tickers, dir, prof, trade_share_count):
+    driver = start_regular_driver(dir, prof)
     driver.get("https://digital.fidelity.com/ftgw/digital/portfolio/summary")
     login(driver)
     account_count = getNumOfAccounts(driver)
@@ -118,7 +114,6 @@ def buy(ticker, dir, prof):
 
     print("iterating through accounts now...")
     for num in range(account_count):
-        
         if num != 0:
             account_dropdown = driver.find_element(By.XPATH, '//*[@id="dest-acct-dropdown"]')
             account_dropdown.click()
@@ -126,59 +121,51 @@ def buy(ticker, dir, prof):
         switchAccounts(driver, num)
         short_sleep()
 
-        ticker_search(driver, ticker)
+        for ticker in tickers:
+            ticker_search(driver, ticker)
 
-        print("clicking buy...")
-        # click buy
-        buy_button = driver.find_element(By.XPATH, '//*[@id="action-buy"]/s-root/div')
-        buy_button.click()
-        very_short_sleep()
+            print("clicking buy...")
+            # click buy
+            buy_button = driver.find_element(By.XPATH, '//*[@id="action-buy"]/s-root/div')
+            buy_button.click()
+            very_short_sleep()
 
-        print("entering qty...")
-        # enter quantity
-        qty_field = driver.find_element(By.XPATH, '//*[@id="eqt-shared-quantity"]')
-        human_type(trade_share_count, qty_field)
-        very_short_sleep()
+            print("entering qty...")
+            # enter quantity
+            qty_field = driver.find_element(By.XPATH, '//*[@id="eqt-shared-quantity"]')
+            human_type(trade_share_count, qty_field)
+            very_short_sleep()
 
-        # click somewhere else
-        price_area = driver.find_element(By.XPATH, '//*[@id="quote-panel"]/div/div[2]')
-        price_area.click()
-        very_short_sleep()
+            # click somewhere else
+            price_area = driver.find_element(By.XPATH, '//*[@id="quote-panel"]/div/div[2]')
+            price_area.click()
+            very_short_sleep()
 
-        # click limit buy
-        limit_buy_button = driver.find_element(By.XPATH, '//*[@id="market-no"]/s-root/div/label')
-        limit_buy_button.click()
-        very_short_sleep()
+            # click limit buy
+            limit_buy_button = driver.find_element(By.XPATH, '//*[@id="market-no"]/s-root/div/label')
+            limit_buy_button.click()
+            very_short_sleep()
 
-        # get current price (adds $0.10 to order for higher odds in order fill)
-        current_price = driver.execute_script('return document.querySelector("#eq-ticket__last-price .last-price").textContent')
-        current_price = float(current_price[1:]) # removes '$' in front
-        current_price += 0.1    # adjust order fill limit cap
-        current_price = f"{current_price:.2f}"
+            # get current price (adds $0.10 to order for higher odds in order fill)
+            current_price = driver.execute_script('return document.querySelector("#eq-ticket__last-price .last-price").textContent')
+            current_price = float(current_price[1:]) # removes '$' in front
+            current_price += 0.1    # adjust order fill limit cap
+            current_price = f"{current_price:.2f}"
 
-        # enter limit price
-        limit_price = driver.find_element(By.XPATH, '//*[@id="eqt-ordsel-limit-price-field"]')
-        human_type(current_price, limit_price)
-        very_short_sleep()
+            # enter limit price
+            limit_price = driver.find_element(By.XPATH, '//*[@id="eqt-ordsel-limit-price-field"]')
+            human_type(current_price, limit_price)
+            very_short_sleep()
 
-        preview_and_submit(driver)
+            preview_and_submit(driver)
 
-        # enter new order
-        start_new_order(driver)
+            # enter new order
+            start_new_order(driver)
         
     print("No more accounts to process.")
     driver.quit()
 
-def sell(ticker, dir, prof):
-    while True:
-        trade_share_count = input("How many shares would you like to sell? For all shares, type 'all', else enter an amount: ")
-        
-        if trade_share_count.lower() == "all":
-            break
-        elif re.fullmatch(r'\d+', trade_share_count):
-            break
-        else:
-            print("Invalid input. Please enter 'all' or a number.")
+def sell(ticker, dir, prof, trade_share_count):
         
     driver = start_headless_driver(dir, prof)
     driver.get("https://digital.fidelity.com/ftgw/digital/portfolio/summary")
