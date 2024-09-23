@@ -164,3 +164,6 @@ def perform_buy(driver, ticker, wait):
 
     except Exception as e:
         print(f"Failed to buy stock {ticker}: {e}")
+
+def sell(ticker, driver_path, profile_path):
+    pass 
