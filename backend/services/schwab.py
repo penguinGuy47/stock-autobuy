@@ -30,7 +30,7 @@ def login(driver):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def buy(ticker, dir, prof):
+def buy(ticker, dir, prof, qty):
     driver = start_regular_driver(dir, prof)
     driver.get("https://client.schwab.com/Areas/Access/Login")
 
@@ -111,7 +111,7 @@ def buy(ticker, dir, prof):
         driver.get("https://client.schwab.com/app/trade/tom/trade")
         short_sleep()
 
-def sell(ticker, dir, prof):
+def sell(ticker, dir, prof, qty):
     pass
 
     
