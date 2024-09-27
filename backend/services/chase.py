@@ -1,44 +1,37 @@
 from utils.sleep import *
 import time
 
-# ENTER YOUR CREDENTIALS
-username = ""   # ENTER YOUR USERNAME
-pw = ""         # ENTER YOUR PASSWORD
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+two_fa_sessions = {}
 
-# TODO:
-# add multi buy function
-# add 2fa handling
-def login(driver):
-    wait = WebDriverWait(driver, 30)
-    # Sign-in field
+def login(driver, tempdir ,username, password):
+    wait = WebDriverWait(driver, 25)
     try:
         driver.find_elements(By.TAG_NAME, "iframe")
-        # Switch to the iframe using its id
         wait.until(EC.frame_to_be_available_and_switch_to_it((By.ID, "logonbox")))
         very_short_sleep()
 
-        # Get username
+        # Get and enter username
         username_field = wait.until(lambda d: d.execute_script(
             'return document.querySelector("#userId").shadowRoot.querySelector("#userId-input")'))
         driver.execute_script('arguments[0].click();', username_field)
         very_short_sleep()
-
         human_type(username, username_field)
-
         short_sleep()
-        
-        # Get password
+
+        # Get and enter password
         pw_field = wait.until(lambda d: d.execute_script(
             'return document.querySelector("#password").shadowRoot.querySelector("#password-input")'))
         driver.execute_script('arguments[0].click();', pw_field)
-        human_type(pw, pw_field)
+        human_type(password, pw_field)
 
-        # Click remember me box
+        # Click remember me checkbox
         driver.execute_script(
             "var checkbox = document.querySelector('mds-checkbox#rememberMe'); checkbox.setAttribute('state', 'true'); return checkbox;"
         )
-
         short_sleep()
 
         # Click sign in button
@@ -50,7 +43,7 @@ def login(driver):
     except Exception as e:
         print(f"An error occurred during login: {e}")
 
-    # Sent 2FA as text
+    # Handle 2FA as text
     try:
         send_text_btn = wait.until(
             EC.element_to_be_clickable((By.XPATH, '//*[@id="header-simplerAuth-dropdownoptions-styledselect"]'))
@@ -63,31 +56,48 @@ def login(driver):
         submit_btn = driver.find_element(By.XPATH, '//*[@id="requestIdentificationCode"]')
         submit_btn.click()
 
-        code = input("\n\nEnter the code sent to your phone: ")
-        code_input = driver.find_element(By.XPATH, '//*[@id="otpcode_input-input-field"]')
-        human_type(code, code_input)
+        # Generate a unique session ID
+        session_id = str(uuid.uuid4())
+        two_fa_sessions[session_id] = {
+            'driver': driver,
+            'temp_dir': tempdir,  # Store temp_dir for cleanup
+            'username': username,
+            'password': password,
+            'method': 'text',
+            'action': None  # To be set by buy/sell functions
+        }
 
-        pw_input = driver.find_element(By.XPATH, '//*[@id="password_input-input-field"]')
-        human_type(pw, pw_input)
-
-        submit_btn = driver.find_element(By.XPATH, '//*[@id="log_on_to_landing_page-sm"]')
-        submit_btn.click()
+        return {'status': '2FA_required', 'method': 'text', 'session_id': session_id}
     except Exception as e:
-        print("Error sending 2FA as text, continuing:", e)
+        print("Error sending 2FA as text, attempting alternative method:", e)
+        try:
+            # Alternative 2FA handling in app
+            send_to_app_btn = driver.execute_script(
+                'return document.querySelector("#optionsList").shadowRoot.querySelector("#mds-list__list-items > li > div > a")'
+            )
+            driver.execute_script('arguments[0].click()', send_to_app_btn)
 
-    # Sent 2FA to app
-    try:
-        # 2FA handling
-        shadow_host_selector = "#optionsList"
-        shadow_element_selector = "#mds-list__list-items > li > div > a"
-        send_noti_btn = wait_for_shadow_element(driver, shadow_host_selector, shadow_element_selector)
-    
-        if send_noti_btn:
-            driver.execute_script('arguments[0].click();', send_noti_btn)
-        else:
-            print("The button inside the shadow DOM was not found.")
-    except Exception as e:
-        print(f"An error occurred during 2FA handling: {e}")
+            very_short_sleep()
+
+            nxt_btn = driver.execute_script(
+                'return document.querySelector("#next-content").shadowRoot.querySelector("button")'
+            )
+            driver.execute_script('arguments[0].click()', nxt_btn)
+
+            session_id = str(uuid.uuid4())
+            two_fa_sessions[session_id] = {
+                'driver': driver,
+                'temp_dir': tempdir,
+                'username': username,
+                'password': password,
+                'method': 'app',
+                'action': None  # To be set by buy/sell functions
+            }
+
+            # Indicate that App Notification-Based 2FA is required
+            return {'status': '2FA_required', 'method': 'app', 'session_id': session_id}
+        except Exception as e:
+            print(f"An error occurred during alternative 2FA handling: {e}")
 
 def wait_for_shadow_element(driver, shadow_host_css, shadow_element_selector):
     very_short_sleep()
@@ -102,7 +112,6 @@ def wait_for_shadow_element(driver, shadow_host_css, shadow_element_selector):
             return element !== null;
             '''
         ))
-        # If found, return the element
         return driver.execute_script(
             f'''
             return document.querySelector("{shadow_host_css}").shadowRoot.querySelector("{shadow_element_selector}");
@@ -111,319 +120,409 @@ def wait_for_shadow_element(driver, shadow_host_css, shadow_element_selector):
     except TimeoutException:
         return None
 
-def buy(tickers, dir, prof, qty):
+def select_account(driver, wait, index):
+    try:
+        script_info = f'''
+            return document.querySelector("#account-table-INVESTMENT").shadowRoot
+                .querySelector("#row-header-row{index}-column0 > div > a > span");
+        '''
+        account_select = wait.until(lambda d: d.execute_script(script_info))
+        driver.execute_script('arguments[0].click();', account_select)
+        print(f"Selected account {index + 1}")
+        short_sleep()
+        return driver.current_url
+    except Exception as e:
+        print(f"Failed to select account {index + 1}: {e}")
+        return None
+
+def search_ticker(driver, wait, ticker):
+    try:
+        ticker_search = wait.until(lambda d: d.execute_script(
+            'return document.querySelector("#quoteSearchLink").shadowRoot.querySelector("a")'))
+        driver.execute_script('arguments[0].click();', ticker_search)
+        short_sleep()
+
+        ticker_input = wait.until(lambda d: d.execute_script(
+            'return document.querySelector("#typeaheadSearchTextInput").shadowRoot.querySelector("#typeaheadSearchTextInput-input")'))
+        driver.execute_script('arguments[0].click()', ticker_input)
+        short_sleep()
+
+        human_type(ticker, ticker_input)
+        short_sleep()
+        ticker_input.send_keys(Keys.ENTER)
+        long_sleep()
+
+        # Switch to the iframe
+        driver.find_element(By.TAG_NAME, "iframe")
+        driver.switch_to.frame("quote-markit-thirdPartyIFrameFlyout")
+        return True
+    except Exception as e:
+        print(f"An error occurred while searching for ticker '{ticker}': {e}")
+        return False
+
+def handle_market_alert(driver, wait):
+    try:
+        close_button = WebDriverWait(driver, 4).until(
+            EC.visibility_of_element_located((By.XPATH, "//*[@id='close-add-market-alert-notification']"))
+        )
+        close_button.click()
+        rand_sleep()
+    except TimeoutException:
+        print("\n\nNo market alert notification found, continuing...\n\n")
+
+def perform_trade(driver, wait, action, qty):
     """
     Args:
-        tickers (list of str): List of stock ticker symbols to buy.
-        dir (str): Path to the ChromeDriver executable.
-        prof (str): Path to the Chrome user profile.
+        action (str): 'buy' or 'sell'
+        qty (str): Quantity of shares to trade
     """
-    driver = None
     try:
-        # Initialize WebDriver
-        driver = start_regular_driver(dir, prof)
+        trade_button = wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="quote-header-trade-button"]'))
+        )
+        trade_button.click()
+        rand_sleep()
+        driver.switch_to.default_content()
+        print("in perform trade")
+        if action == 'buy':
+            order_button_xpath = '//*[@id="orderAction-segmentedButtonInput-0"]'
+        elif action == 'sell':
+            order_button_xpath = '//*[@id="orderAction-segmentedButtonInput-1"]'
+        else:
+            print("Invalid trade action specified.")
+            return False
+
+        trade_button_element = driver.find_element(By.XPATH, order_button_xpath)
+        trade_button_element.click()
+        short_sleep()
+
+        # Dropdown order type
+        order_type_dropdown = wait.until(lambda d: d.execute_script(
+            'return document.querySelector("#orderTypeDropdown").shadowRoot.querySelector("#select-orderTypeDropdown")'))
+        driver.execute_script('arguments[0].click();', order_type_dropdown)
+        short_sleep()
+
+        # Choose market order
+        market_order = wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="orderTypeDropdown"]/mds-select-option[1]'))
+        )
+        market_order.click()
+        short_sleep()
+
+        # Share quantity
+        share_qty = wait.until(lambda d: d.execute_script(
+            'return document.querySelector("#orderQuantity").shadowRoot.querySelector("#orderQuantity-input")'))
+        driver.execute_script('arguments[0].click();', share_qty)
+        short_sleep()
+        share_qty.send_keys(qty)
+        short_sleep()
+
+        # Click preview
+        preview_button = wait.until(lambda d: d.execute_script(
+            'return document.querySelector("#previewButton").shadowRoot.querySelector("button")'))
+        driver.execute_script('arguments[0].click();', preview_button)
+        short_sleep()
+
+        # Click place order
+        place_order_button = driver.execute_script(
+            'return document.querySelector("#orderPreviewContent > div.order-preview-section.mds-pt-4 > div > mds-button").shadowRoot.querySelector("button")')
+        driver.execute_script('arguments[0].click();', place_order_button)
+        short_sleep()
+
+        print(f"Order placed successfully for {action} operation!")
+        return True
+
+    except Exception as e:
+        print(f"An error occurred during {action} operation: {e}")
+        return False
+
+def navigate_to_dashboard(driver):
+    try:
+        driver.get('https://secure.chase.com/web/auth/dashboard#/dashboard/overview')
+        short_sleep()
+    except Exception as e:
+        print(f"Failed to navigate to dashboard: {e}")
+
+def buy(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
+    logger.info(f"Initiating buy operation for {trade_share_count} shares of {tickers} by user {username}")
+    driver, temp_dir = start_headless_driver(dir, prof)
+    try:
         driver.get("https://secure.chase.com/web/auth/dashboard#/dashboard/overviewAccounts/overview/index")
-        wait = WebDriverWait(driver, 30)
+        login_response = login(driver, temp_dir, username, password)
+
+        if login_response['status'] == '2FA_required':
+            logger.info(f"2FA required via {login_response['method']}.")
+            # Store action details in the session
+            session_id = login_response.get('session_id')
+            two_fa_sessions[session_id]['action'] = 'buy'
+            two_fa_sessions[session_id]['tickers'] = tickers
+            two_fa_sessions[session_id]['trade_share_count'] = trade_share_count
+            os.system('echo \a')
+            return {
+                'status': '2FA_required',
+                'method': login_response['method'],
+                'session_id': session_id,
+                'message': '2FA is required'
+            }
+        elif login_response['status'] == 'success':
+            # Proceed with buying
+            trade_response = buy_after_login(driver, tickers, trade_share_count)
+            driver.quit()
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return trade_response
+
+        else:
+            # Handle other statuses
+            driver.quit()
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return {
+                'status': 'failure',
+                'message': login_response.get('message', 'Login failed.')
+            }
+    except Exception as e:
+        logger.error(f"Error during buy operation: {str(e)}")
+        driver.quit()
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        return {
+            'status': 'failure',
+            'message': f'Failed to buy {tickers}.',
+            'error': str(e)
+        }
+    
+def buy_after_login(driver, tickers, trade_share_count):
+    wait = WebDriverWait(driver, 10)
+    # Determine the number of account rows
+    num_of_rows = driver.execute_script('''
+        let shadow_root = document.querySelector("#account-table-INVESTMENT").shadowRoot;
+        let tbody = shadow_root.querySelector("tbody");
+        return tbody.querySelectorAll("tr").length;
+    ''')
+
+    for i in range(num_of_rows):
         short_sleep()
-
-        login(driver)
-
-        # Uncomment if you want manual confirmation after 2FA
-        # os.system('echo \a')
-        # input("\n\nPlease complete 2FA if requested and then press Enter when you reach the dashboard...\n\n\n")
-        # print("Logged into Chase!")
+        if driver.current_url != 'https://secure.chase.com/web/auth/dashboard#/dashboard/overview':
+            navigate_to_dashboard(driver)
 
         short_sleep()
+        account_url = select_account(driver, wait, i)
+        if not account_url:
+            continue
 
+        for ticker in tickers:
+            if not search_ticker(driver, wait, ticker):
+                continue
+
+            handle_market_alert(driver, wait)
+
+            if perform_trade(driver, wait, 'buy', trade_share_count):
+                print(f"Buy order placed successfully for '{ticker}' on Chase!")
+            else:
+                print(f"Failed to place buy order for '{ticker}'.")
+
+            # Navigate back to account
+            driver.get(account_url)
+            short_sleep()
+
+    print("No more accounts to process.")
+
+def sell(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
+    logger.info(f"Initiating sell operation for {trade_share_count} shares of {tickers} by user {username}")
+    driver, temp_dir = start_regular_driver(dir, prof)
+    try:
+        driver.get("https://secure.chase.com/web/auth/dashboard#/dashboard/overviewAccounts/overview/index")
+        login_response = login(driver, temp_dir, username, password)
+
+        if login_response['status'] == '2FA_required':
+            logger.info(f"2FA required via {login_response['method']}.")
+            # Store action details in the session
+            session_id = login_response.get('session_id')
+            two_fa_sessions[session_id]['action'] = 'sell'
+            two_fa_sessions[session_id]['tickers'] = tickers
+            two_fa_sessions[session_id]['trade_share_count'] = trade_share_count
+            return {
+                'status': '2FA_required',
+                'method': login_response['method'],
+                'session_id': session_id,
+                'message': '2FA is required'
+            }
+
+        elif login_response['status'] == 'success':
+            # Proceed with selling
+            trade_response = sell_after_login(driver, tickers, trade_share_count)
+            driver.quit()
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return trade_response
+
+        else:
+            # Handle other statuses
+            driver.quit()
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return {
+                'status': 'failure',
+                'message': login_response.get('message', 'Login failed.')
+            }
+    except Exception as e:
+        logger.error(f"Error during sell operation: {str(e)}")
+        if driver:
+            driver.quit()
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        return {
+            'status': 'failure',
+            'message': f'Failed to sell {tickers}.',
+            'error': str(e)
+        }
+
+def sell_after_login(driver, tickers, trade_share_count):
+    wait = WebDriverWait(driver,  10)
+    try:
         # Determine the number of account rows
         num_of_rows = driver.execute_script('''
             let shadow_root = document.querySelector("#account-table-INVESTMENT").shadowRoot;
             let tbody = shadow_root.querySelector("tbody");
             return tbody.querySelectorAll("tr").length;
         ''')
+    except Exception as e:
+        logger.error(f"Failed to determine number of account rows: {e}")
+        return {'status': 'error', 'message': f'Failed to determine number of accounts: {e}'}
 
-        for i in range(num_of_rows):
-            short_sleep()
-            if driver.current_url != 'https://secure.chase.com/web/auth/dashboard#/dashboard/overview':
-                driver.get('https://secure.chase.com/web/auth/dashboard#/dashboard/overview')
+    for i in range(num_of_rows):
+        short_sleep()
+        if driver.current_url != 'https://secure.chase.com/web/auth/dashboard#/dashboard/overview':
+            navigate_to_dashboard(driver)
 
-            short_sleep()
-            script_info = f'''
-                return document.querySelector("#account-table-INVESTMENT").shadowRoot
-                    .querySelector("#row-header-row{i}-column0 > div > a > span");
-            '''
-            
-            try:
-                account_select = wait.until(lambda d: d.execute_script(script_info))
-                driver.execute_script('arguments[0].click();', account_select)
-                print(f"Selected account {i+1}")
-            except Exception as e:
-                print(f"Failed to select account {i+1}: {e}")
+        print("in sell after login")
+        short_sleep()
+        account_url = select_account(driver, wait, i)
+        if not account_url:
+            continue
+
+        for ticker in tickers:
+            if not search_ticker(driver, wait, ticker):
                 continue
 
+            handle_market_alert(driver, wait)
+
+            if perform_trade(driver, wait, 'sell', trade_share_count):
+                print(f"Sell order placed successfully for '{ticker}' on Chase!")
+            else:
+                print(f"Failed to place sell order for '{ticker}'.")
+
+            # Navigate back to account
+            driver.get(account_url)
             short_sleep()
-            account_url = driver.current_url
 
-            for ticker in tickers:
-                # Find and select ticker
-                try:
-                    ticker_search = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#quoteSearchLink").shadowRoot.querySelector("a")'))
-                    driver.execute_script('arguments[0].click();', ticker_search)
-                    short_sleep()
+    logger.info("No more accounts to process.")
+    return {'status': 'success', 'message': 'All sell orders processed successfully.'}
 
-                    ticker_input = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#typeaheadSearchTextInput").shadowRoot.querySelector("#typeaheadSearchTextInput-input")'))
-                    driver.execute_script('arguments[0].click()', ticker_input)
-                    short_sleep()
-
-                    human_type(ticker, ticker_input)
-                    short_sleep()
-                    ticker_input.send_keys(Keys.ENTER)
-                    long_sleep()
-                    driver.find_element(By.TAG_NAME, "iframe")
-                    
-                    # Switch to the iframe
-                    driver.switch_to.frame("quote-markit-thirdPartyIFrameFlyout")
-                except Exception as e:
-                    print(f"An error occurred while searching for ticker '{ticker}': {e}")
-                    continue
-
-                try:
-                    wait_short = WebDriverWait(driver, 4)
-                    close_button = wait_short.until(
-                        EC.visibility_of_element_located((By.XPATH, "//*[@id='close-add-market-alert-notification']"))
-                    )
-                    close_button.click()
-                    rand_sleep()
-                except TimeoutException:
-                    print("\n\nNo market alert notification found, continuing with buy...\n\n")
-
-                # Purchase ticker
-                try:
-                    trade_button = wait.until(
-                        EC.visibility_of_element_located((By.XPATH, '//*[@id="quote-header-trade-button"]'))
-                    )
-                    trade_button.click()
-
-                    rand_sleep()
-                    driver.switch_to.default_content()
-
-                    # Buy
-                    buy_button = driver.find_element(By.XPATH, '//*[@id="orderAction-segmentedButtonInput-0"]')
-                    buy_button.click()
-
-                    short_sleep()
-
-                    # Dropdown order type
-                    order_type_dropdown = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#orderTypeDropdown").shadowRoot.querySelector("#select-orderTypeDropdown")'))
-                    driver.execute_script('arguments[0].click();', order_type_dropdown)
-
-                    short_sleep()
-
-                    # Choose market order
-                    market_order = wait.until(
-                        EC.visibility_of_element_located((By.XPATH, '//*[@id="orderTypeDropdown"]/mds-select-option[1]'))
-                    )
-                    market_order.click()
-
-                    short_sleep()
-
-                    # Share quantity
-                    share_qty = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#orderQuantity").shadowRoot.querySelector("#orderQuantity-input")'))
-                    driver.execute_script('arguments[0].click();', share_qty)
-                    short_sleep()
-                    share_qty.send_keys(qty)
-
-                    short_sleep()
-
-                    # Click preview
-                    preview_button = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#previewButton").shadowRoot.querySelector("button")'))
-                    driver.execute_script('arguments[0].click();', preview_button)
-
-                    short_sleep()
-
-                    # Click place order
-                    place_order_button = driver.execute_script(
-                        'return document.querySelector("#orderPreviewContent > div.order-preview-section.mds-pt-4 > div > mds-button").shadowRoot.querySelector("button")')
-                    driver.execute_script('arguments[0].click();', place_order_button)
-
-                    print(f"Order placed successfully for '{ticker}' on Chase!")
-                    short_sleep()
-
-                    # Navigate back to dashboard
-                    driver.get(account_url)
-
-                except Exception as e:
-                    print(f"An error occurred while placing order for '{ticker}'")
-                    driver.get(account_url)
-                    continue
-
-        print("No more accounts to process.")
-    finally:
-        if driver:
-            driver.quit()
-            print("WebDriver has been closed.")
-
-def sell(tickers, dir, prof, qty):
+def complete_2fa_and_trade(session_id, two_fa_code=None):
     """
-    Automate the process of selling specified tickers across all accounts.
-
-    Args:
-        tickers (list of str): List of stock ticker symbols to sell.
-        dir (str): Path to the ChromeDriver executable.
-        prof (str): Path to the Chrome user profile.
-        qty (str): Quantity of shares to sell for each ticker.
+    Completes the 2FA process based on the session ID and performs the trade.
     """
-    driver = None
+    logger.info(f"Completing 2FA for session {session_id}.")
+
+    if session_id not in two_fa_sessions:
+        logger.error("Invalid session ID.")
+        return {'status': 'error', 'message': 'Invalid session ID.'}
+
+    session_info = two_fa_sessions[session_id]
+    driver = session_info['driver']
+    temp_dir = session_info['temp_dir']
+    method = session_info['method']
+    action = session_info['action']
+    tickers = session_info.get('tickers')
+    ticker = session_info.get('ticker')
+    trade_share_count = session_info.get('trade_share_count')
+    username = session_info.get('username')
+    password = session_info.get('password')
+
     try:
-        # Initialize WebDriver
-        driver = start_regular_driver(dir, prof)
-        driver.get("https://secure.chase.com/web/auth/dashboard#/dashboard/overviewAccounts/overview/index")
-        wait = WebDriverWait(driver, 30)
-        short_sleep()
+        wait = WebDriverWait(driver, 24)
 
-        # Login to Chase
-        login(driver)
 
-        # Uncomment if you want manual confirmation after 2FA
-        # os.system('echo \a')
-        # input("\n\nPlease complete 2FA if requested and then press Enter when you reach the dashboard...\n\n\n")
-        # print("Logged into Chase!")
 
-        short_sleep()
 
-        # Determine the number of account rows
-        num_of_rows = driver.execute_script('''
-            let shadow_root = document.querySelector("#account-table-INVESTMENT").shadowRoot;
-            let tbody = shadow_root.querySelector("tbody");
-            return tbody.querySelectorAll("tr").length;
-        ''')
 
-        for i in range(num_of_rows):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        # UPDATE THIS TEXT SECTION 
+        if method == 'text':
+            if not two_fa_code:
+                logger.error("2FA code is missing for text-based 2FA.")
+                return {'status': 'error', 'message': '2FA code is required for text-based 2FA.'}
+
+            # Enter the 2FA code received via text
+            code_input = wait.until(
+                EC.element_to_be_clickable((
+                    By.XPATH, '//*[@id="dom-otp-code-input"]'))
+            )
+            human_type(two_fa_code, code_input)
+
+            asking_again = wait.until(
+                EC.element_to_be_clickable((
+                    By.XPATH, '//*[@id="dom-widget"]/div/div[2]/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-form/s-root/div/form/s-slot/s-assigned-wrapper/div[1]/pvd-field-group/s-root/div/div/s-slot/s-assigned-wrapper/pvd-checkbox'))
+            )
+            asking_again.click()
+
+            very_short_sleep()
+            submit_code = wait.until(
+                EC.element_to_be_clickable((
+                    By.XPATH, '//*[@id="dom-otp-code-submit-button"]'))
+            )
+            submit_code.click()
+
+            logger.info("Submitted 2FA code via text.")
             short_sleep()
-            if driver.current_url != 'https://secure.chase.com/web/auth/dashboard#/dashboard/overview':
-                driver.get('https://secure.chase.com/web/auth/dashboard#/dashboard/overview')
 
-            short_sleep()
-            script_info = f'''
-                return document.querySelector("#account-table-INVESTMENT").shadowRoot
-                    .querySelector("#row-header-row{i}-column0 > div > a > span");
-            '''
-            
+        elif method == 'app':
+            # Wait for user to approve app notification
+            logger.info("Awaiting site redirect")
+            # Implement a polling mechanism or a waiting period
+            # For simplicity, wait for a certain time and check if login is successful
             try:
-                account_select = wait.until(lambda d: d.execute_script(script_info))
-                driver.execute_script('arguments[0].click();', account_select)
-                print(f"Selected account {i+1}")
-            except Exception as e:
-                print(f"Failed to select account {i+1}: {e}")
-                continue
+                WebDriverWait(driver, 120).until(
+                EC.url_to_be('https://secure.chase.com/web/auth/dashboard#/dashboard/overview')
+            )
+            except TimeoutException:
+                logger.error("App Notification 2FA not approved within the expected time.")
+                return {'status': 'error', 'message': 'App Notification 2FA not approved.'}
 
-            short_sleep()
-            account_url = driver.current_url
-            for ticker in tickers:
-                # Find and select ticker
-                try:
-                    ticker_search = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#quoteSearchLink").shadowRoot.querySelector("a")'))
-                    driver.execute_script('arguments[0].click();', ticker_search)
-                    short_sleep()
+        else:
+            logger.error("Invalid 2FA method specified.")
+            return {'status': 'error', 'message': 'Invalid 2FA method specified.'}
 
-                    ticker_input = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#typeaheadSearchTextInput").shadowRoot.querySelector("#typeaheadSearchTextInput-input")'))
-                    driver.execute_script('arguments[0].click()', ticker_input)
-                    short_sleep()
+        short_sleep()
+        # After 2FA, proceed with the trade
+        if action == 'buy':
+            trade_response = buy_after_login(driver, tickers, trade_share_count)
+        elif action == 'sell':
+            trade_response = sell_after_login(driver, ticker, trade_share_count)
+        else:
+            logger.error("Invalid trade action specified.")
+            return {'status': 'error', 'message': 'Invalid trade action specified.'}
 
-                    human_type(ticker, ticker_input) 
-                    short_sleep()
-                    ticker_input.send_keys(Keys.ENTER)
-                    long_sleep()
-                    driver.find_element(By.TAG_NAME, "iframe")
-                    
-                    # Switch to the iframe
-                    driver.switch_to.frame("quote-markit-thirdPartyIFrameFlyout")
-                except Exception as e:
-                    print(f"An error occurred while searching for ticker '{ticker}': {e}")
-                    continue
+        # Clean up
+        driver.quit()
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        del two_fa_sessions[session_id]
 
-                try:
-                    wait_short = WebDriverWait(driver, 4)
-                    close_button = wait_short.until(
-                        EC.visibility_of_element_located((By.XPATH, "//*[@id='close-add-market-alert-notification']"))
-                    )
-                    close_button.click()
-                    rand_sleep()
-                except TimeoutException:
-                    print("\n\nNo market alert notification found, continuing with sell...\n\n")
+        return trade_response
 
-                # Sell ticker
-                try:
-                    trade_button = wait.until(
-                        EC.visibility_of_element_located((By.XPATH, '//*[@id="quote-header-trade-button"]'))
-                    )
-                    trade_button.click()
-
-                    rand_sleep()
-                    driver.switch_to.default_content()
-
-                    # Sell
-                    sell_button = driver.find_element(By.XPATH, '//*[@id="orderAction-segmentedButtonInput-1"]')  # Assuming '1' is for sell
-                    sell_button.click()
-
-                    short_sleep()
-
-                    # Dropdown order type
-                    order_type_dropdown = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#orderTypeDropdown").shadowRoot.querySelector("#select-orderTypeDropdown")'))
-                    driver.execute_script('arguments[0].click();', order_type_dropdown)
-
-                    short_sleep()
-
-                    # Choose market order
-                    market_order = wait.until(
-                        EC.visibility_of_element_located((By.XPATH, '//*[@id="orderTypeDropdown"]/mds-select-option[1]'))
-                    )
-                    market_order.click()
-
-                    short_sleep()
-
-                    # Share quantity
-                    share_qty = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#orderQuantity").shadowRoot.querySelector("#orderQuantity-input")'))
-                    driver.execute_script('arguments[0].click();', share_qty)
-                    short_sleep()
-                    share_qty.send_keys(qty)
-
-                    short_sleep()
-
-                    # Click preview
-                    preview_button = wait.until(lambda d: d.execute_script(
-                        'return document.querySelector("#previewButton").shadowRoot.querySelector("button")'))
-                    driver.execute_script('arguments[0].click();', preview_button)
-
-                    short_sleep()
-
-                    # Click place order
-                    place_order_button = driver.execute_script(
-                        'return document.querySelector("#orderPreviewContent > div.order-preview-section.mds-pt-4 > div > mds-button").shadowRoot.querySelector("button")')
-                    driver.execute_script('arguments[0].click();', place_order_button)
-
-                    print(f"Order placed successfully for '{ticker}' on Chase!")
-                    short_sleep()
-
-                    # Navigate back to dashboard for the next operation
-                    driver.get(account_url)
-                except Exception as e:
-                    print(f"An error occurred while placing order for '{ticker}': {e}")
-                    # Optionally, you can add more error handling or logging here
-                    driver.get(account_url)
-                    continue
-
-        print("No more accounts to process.")
-    finally:
-        if driver:
-            driver.quit()
-            print("WebDriver has been closed.")
+    except Exception as e:
+        logger.error(f"Error during 2FA completion and trade: {str(e)}")
+        driver.quit()
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        del two_fa_sessions[session_id]
+        return {'status': 'error', 'message': 'An error occurred during 2FA completion and trade.', 'error': str(e)}
