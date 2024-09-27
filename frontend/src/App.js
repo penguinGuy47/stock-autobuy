@@ -9,7 +9,6 @@ function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        {/* Define other routes here like Register, Login, etc. */}
       </Routes>
     </Router>
   );
