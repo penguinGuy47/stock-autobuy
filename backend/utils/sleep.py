@@ -7,13 +7,17 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+
 from selenium.common.exceptions import TimeoutException
 
 import time
 import random
 import pickle
 import os
-import re
+import shutil
+import tempfile
+import logging
+import uuid
 
 chromedriver_path = os.path.join(os.path.dirname(__file__), "../../drivers/chromedriver.exe")
 
@@ -54,40 +58,58 @@ def long_sleep():
     random_num = random.randint(10,15)
     time.sleep(random_num)
 
-def start_headless_driver(dir, prof):
+def start_headless_driver(dir=None, prof=None):
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless")  # Headless mode
+    options.add_argument("--headless")
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    # options.add_argument(f"user-data-dir={dir}")  # COMMENTED FOR 2FA TESTING
-    # options.add_argument(f"--profile-directory={prof}")
-    options.add_argument("--disable-blink-features=AutomationControlled")  # Prevent detection
-    options.add_argument("--window-size=1920,1080")  # standard desktop size window
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-infobars")
     options.add_argument("--disable-browser-side-navigation")
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
-    
-    driver = webdriver.Chrome(options=options, service=Service(chromedriver_path))
-    return driver
 
-def start_regular_driver(dir, prof):
+    # Create a temporary directory for user-data-dir
+    temp_dir = tempfile.mkdtemp()
+    options.add_argument(f"user-data-dir={temp_dir}")
+
+    # Initialize ChromeDriver using webdriver-manager
+    driver = webdriver.Chrome(options=options, service=Service(chromedriver_path))
+    return driver, temp_dir
+
+def start_regular_driver(dir=None, prof=None):
     options = webdriver.ChromeOptions()
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    # options.add_argument(f"user-data-dir={dir}")  # COMMENTED FOR 2FA TESTING
-    # options.add_argument(f"--profile-directory={prof}")
-    options.add_argument("--disable-blink-features=AutomationControlled")  # prevent detection
-    options.add_argument("--window-size=1920,1080")  # standard desktop size window
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-infobars")
     options.add_argument("--disable-browser-side-navigation")
+    # options.add_argument("--incognito")  # Open browser in incognito mode for testing
+    options.add_argument("--disable-cookies")
+    options.add_argument("--disable-site-isolation-trials")
+    options.add_argument("--disable-web-security")
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
     
+    
+    # FOR TESTING
+    # brave_path = "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+    # options.binary_location = brave_path
+
+    
+
+    # Create a temporary directory for user-data-dir
+    temp_dir = tempfile.mkdtemp()
+    options.add_argument(f"user-data-dir={temp_dir}")
+
+    # Initialize ChromeDriver using webdriver-manager
     driver = webdriver.Chrome(options=options, service=Service(chromedriver_path))
-    return driver
+    
+    return driver, temp_dir
 
 def save_cookies(driver, path):
     with open(path, "wb") as f:
