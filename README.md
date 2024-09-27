@@ -2,17 +2,15 @@ A program that will automatically purchase stocks in a streamlined fashion after
 
 Current upcoming updates:
 - More brokerages
-- Ability to purchase different stocks
-- Ability to sell
-- Improved 2FA handling
 - Headless
-- UI
+- Improved UI
 
 To run:
 
 1. Download
-2. Go into each broker file and add your username/password
-3. Run venv ".\env\Scripts\activate"
-4. Run main.py "python main.py"
-5. Input your ticker
-6. Watch terminal for 2FA requests
+2. Open 2 terminal instances and then
+3. Run venv ".\env\Scripts\activate" in both terminals
+4. Run "npm start" in front end directory
+5. Run "python app.py" in backend directory
+6. Input your information
+7. Watch for 2FA requests
