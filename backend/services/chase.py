@@ -1,6 +1,10 @@
 from utils.sleep import *
 import time
 
+# TODO:
+# Add additonal 2FA handling
+# Fix selling
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -327,7 +331,7 @@ def buy_after_login(driver, tickers, trade_share_count):
 
 def sell(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
     logger.info(f"Initiating sell operation for {trade_share_count} shares of {tickers} by user {username}")
-    driver, temp_dir = start_regular_driver(dir, prof)
+    driver, temp_dir = start_headless_driver(dir, prof)
     try:
         driver.get("https://secure.chase.com/web/auth/dashboard#/dashboard/overviewAccounts/overview/index")
         login_response = login(driver, temp_dir, username, password)
@@ -390,7 +394,6 @@ def sell_after_login(driver, tickers, trade_share_count):
         if driver.current_url != 'https://secure.chase.com/web/auth/dashboard#/dashboard/overview':
             navigate_to_dashboard(driver)
 
-        print("in sell after login")
         short_sleep()
         account_url = select_account(driver, wait, i)
         if not account_url:
@@ -430,7 +433,7 @@ def complete_2fa_and_trade(session_id, two_fa_code=None):
     method = session_info['method']
     action = session_info['action']
     tickers = session_info.get('tickers')
-    ticker = session_info.get('ticker')
+    # ticker = session_info.get('ticker')
     trade_share_count = session_info.get('trade_share_count')
     username = session_info.get('username')
     password = session_info.get('password')
@@ -508,7 +511,7 @@ def complete_2fa_and_trade(session_id, two_fa_code=None):
         if action == 'buy':
             trade_response = buy_after_login(driver, tickers, trade_share_count)
         elif action == 'sell':
-            trade_response = sell_after_login(driver, ticker, trade_share_count)
+            trade_response = sell_after_login(driver, tickers, trade_share_count)
         else:
             logger.error("Invalid trade action specified.")
             return {'status': 'error', 'message': 'Invalid trade action specified.'}
