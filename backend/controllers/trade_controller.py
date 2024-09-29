@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 BROKER_SERVICES = {
     'chase': {'buy': chase_buy, 'sell': chase_sell},
     'fidelity': {'buy': buy, 'sell': sell},
-    # 'schwab': {'buy': schwab_buy, 'sell': schwab_sell},
+    'schwab': {'buy': schwab_buy, 'sell': schwab_sell},
 }
 
 @trade_bp.route('/buy', methods=['POST'])
@@ -107,6 +107,7 @@ def complete_2fa_endpoint():
         # Validate session_id exists
         from services.fidelity import two_fa_sessions, complete_2fa_and_trade
         from services.chase import two_fa_sessions as chase_two_fa_sessions, complete_2fa_and_trade as chase_complete_2fa_and_trade
+        from services.schwab import two_fa_sessions as schwab_two_fa_sessions, complete_2fa_and_trade as schwab_complete_2fa_and_trade
 
         # if session_id not in two_fa_sessions:
         #     logger.warning(f"Invalid session_id: {session_id}")
@@ -114,6 +115,11 @@ def complete_2fa_endpoint():
         # el
         if session_id in chase_two_fa_sessions:
             trade_response = chase_complete_2fa_and_trade(
+                session_id=session_id,
+                two_fa_code=two_fa_code
+            )
+        elif session_id in schwab_two_fa_sessions:
+            trade_response = schwab_complete_2fa_and_trade(
                 session_id=session_id,
                 two_fa_code=two_fa_code
             )
