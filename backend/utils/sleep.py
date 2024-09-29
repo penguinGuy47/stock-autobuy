@@ -61,7 +61,6 @@ def long_sleep():
 def start_headless_driver(dir=None, prof=None):
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
-    options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-blink-features=AutomationControlled")
@@ -69,7 +68,7 @@ def start_headless_driver(dir=None, prof=None):
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-infobars")
     options.add_argument("--disable-browser-side-navigation")
-    options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+    options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.6668.71 Safari/537.36")
 
     # Create a temporary directory for user-data-dir
     temp_dir = tempfile.mkdtemp()
@@ -93,14 +92,11 @@ def start_regular_driver(dir=None, prof=None):
     options.add_argument("--disable-cookies")
     options.add_argument("--disable-site-isolation-trials")
     options.add_argument("--disable-web-security")
-    options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
-    
+    options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.6668.71 Safari/537.36")
     
     # FOR TESTING
     # brave_path = "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
     # options.binary_location = brave_path
-
-    
 
     # Create a temporary directory for user-data-dir
     temp_dir = tempfile.mkdtemp()
