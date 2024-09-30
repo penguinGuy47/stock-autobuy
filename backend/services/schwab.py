@@ -8,6 +8,7 @@ two_fa_sessions = {}
 
 # TODO:
 # headless
+# method abstraction
 def login(driver, tempdir ,username, password):
     wait = WebDriverWait(driver, 5)
     try:
@@ -97,7 +98,7 @@ def login(driver, tempdir ,username, password):
                 print(f"An error occurred with 2FA: {e}")
 
 def buy(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
-    driver, temp_dir = start_headless_driver(dir, prof)
+    driver, temp_dir = start_regular_driver(dir, prof)
 
     try:
         driver.get("https://client.schwab.com/Areas/Access/Login")
@@ -143,18 +144,22 @@ def buy(tickers, dir, prof, trade_share_count, username, password, two_fa_code=N
         }
 
 def buy_after_login(driver, tickers, trade_share_count):
-
-    # redirect to trade page
+    # Redirect to trade page
     driver.get("https://client.schwab.com/app/trade/tom/trade")
     short_sleep()
 
-    # get accounts
-    account_dropdown = driver.find_element(By.XPATH, '//*[@id="basic-example-small"]')
-    account_dropdown.click()
+    # Get accounts
+    try:
+        account_dropdown = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="basic-example-small"]'))
+        )
+        account_dropdown.click()
 
-    ul_element = driver.find_element(By.XPATH, '//*[@id="basic-example-small-list"]/ul')
-    li_elements = ul_element.find_elements(By.TAG_NAME, 'li')
-    li_count = len(li_elements)
+        ul_element = driver.find_element(By.XPATH, '//*[@id="basic-example-small-list"]/ul')
+        li_elements = ul_element.find_elements(By.TAG_NAME, 'li')
+        li_count = len(li_elements)
+    except:
+        print("Error getting account dropdown")
 
     for num in range(li_count):
         if num != 0:
@@ -162,12 +167,12 @@ def buy_after_login(driver, tickers, trade_share_count):
             account_dropdown.click()
         very_short_sleep()
 
-        # click on account
+        # Click on account
         account_select = driver.find_element(By.ID, f'basic-example-small-header-0-account-{num}')
         account_select.click()
         very_short_sleep()
         for ticker in tickers:
-        # ticker search
+        # Ticker search
             ticker_search = driver.find_element(By.XPATH, '//*[@id="_txtSymbol"]')
             human_type(ticker, ticker_search)
             very_short_sleep()
@@ -182,12 +187,17 @@ def buy_after_login(driver, tickers, trade_share_count):
             select.select_by_visible_text("Buy")
             very_short_sleep()
 
-            # click review order
+            if (trade_share_count != 1):
+                qty_field = driver.find_element(By.XPATH, '//*[@id="ordernumber01inputqty-stepper-input"]')
+                qty_field.clear()
+                human_type(trade_share_count, qty_field)
+
+            # Click review order
             review_order_button = driver.find_element(By.XPATH, '//*[@id="mcaio-footer"]/div/div[2]/button[2]')
             review_order_button.click()
             short_sleep()
 
-            # check if limit is higher than current price
+            # Check if limit is higher than current price
             try:
                 WebDriverWait(driver, 5).until(
                     EC.presence_of_element_located((By.XPATH, "//*[contains(@id, 'mctorderdetail') and contains(@id, 'CHECKBOX_0')]"))
@@ -198,7 +208,7 @@ def buy_after_login(driver, tickers, trade_share_count):
             except Exception as e:
                 pass
 
-            # place buy order
+            # Place buy order
             submit_buy = driver.find_element(By.XPATH, '//*[@id="mtt-place-button"]')
             submit_buy.click()
             short_sleep()
@@ -209,32 +219,68 @@ def buy_after_login(driver, tickers, trade_share_count):
             driver.get("https://client.schwab.com/app/trade/tom/trade")
             short_sleep()
 
-def sell(ticker, dir, prof):
-    driver = start_regular_driver(dir, prof)
-    driver.get("https://client.schwab.com/Areas/Access/Login")
+def sell(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
+    driver, temp_dir = start_regular_driver(dir, prof)
 
-    short_sleep()
-    login(driver)
+    try:
+        driver.get("https://client.schwab.com/Areas/Access/Login")
+        login_response = login(driver, temp_dir, username, password)
+        
+        if login_response['status'] == '2FA_required':
+            logger.info(f"2FA required via {login_response['method']}.")
+            # Store action details in the session
+            session_id = login_response.get('session_id')
+            two_fa_sessions[session_id]['action'] = 'sell'
+            two_fa_sessions[session_id]['tickers'] = tickers
+            two_fa_sessions[session_id]['trade_share_count'] = trade_share_count
+            os.system('echo \a')
+            return {
+                'status': '2FA_required',
+                'method': login_response['method'],
+                'session_id': session_id,
+                'message': '2FA is required'
+            }
+        elif login_response['status'] == 'success':
+            # Proceed with selling
+            trade_response = sell_after_login(driver, tickers, trade_share_count)
+            driver.quit()
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return trade_response
 
-    # 2fa input XPATH: //*[@id="securityCode"]
-    os.system('echo \a')
-    input("\n\nPlease complete 2FA if requested and then press Enter when you reach the dashboard...\n\n\n")
-    print("Logged into Schwab!")
-    short_sleep()
-
-    # redirect to trade page
+        else:
+            # Handle other statuses
+            driver.quit()
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return {
+                'status': 'failure',
+                'message': login_response.get('message', 'Login failed.')
+            }
+    except Exception as e:
+        logger.error(f"Error during sell operation: {str(e)}")
+        driver.quit()
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        return {
+            'status': 'failure',
+            'message': f'Failed to sell {tickers}.',
+            'error': str(e)
+        }
+def sell_after_login(driver, tickers, trade_share_count):
+    # Redirect to trade page
     driver.get("https://client.schwab.com/app/trade/tom/trade")
     short_sleep()
+    # Get accounts
+    try:
+        account_dropdown = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="basic-example-small"]'))
+        )
+        account_dropdown.click()
 
-    # get accounts
-    account_dropdown = driver.find_element(By.XPATH, '//*[@id="basic-example-small"]')
-    account_dropdown.click()
+        ul_element = driver.find_element(By.XPATH, '//*[@id="basic-example-small-list"]/ul')
+        li_elements = ul_element.find_elements(By.TAG_NAME, 'li')
+        li_count = len(li_elements)
 
-    ul_element = driver.find_element(By.XPATH, '//*[@id="basic-example-small-list"]/ul')
-    li_elements = ul_element.find_elements(By.TAG_NAME, 'li')
-    li_count = len(li_elements)
-
-    print(li_count)
+    except:
+        print("Error getting account dropdown")
 
     for num in range(li_count):
         if num != 0:
@@ -242,53 +288,58 @@ def sell(ticker, dir, prof):
             account_dropdown.click()
         very_short_sleep()
 
-        # click on account
+        # Click on account
         account_select = driver.find_element(By.ID, f'basic-example-small-header-0-account-{num}')
         account_select.click()
         very_short_sleep()
+        for ticker in tickers:
+            # Ticker search
+            ticker_search = driver.find_element(By.XPATH, '//*[@id="_txtSymbol"]')
+            human_type(ticker, ticker_search)
+            very_short_sleep()
+            ticker_search.send_keys(Keys.ENTER)
+            short_sleep()
 
-        # ticker search
-        ticker_search = driver.find_element(By.XPATH, '//*[@id="_txtSymbol"]')
-        human_type(ticker, ticker_search)
-        very_short_sleep()
-        ticker_search.send_keys(Keys.ENTER)
-        short_sleep()
+            action_button = driver.find_element(By.XPATH, '//*[@id="_action"]')
+            action_button.click()
+            very_short_sleep()
 
-        action_button = driver.find_element(By.XPATH, '//*[@id="_action"]')
-        action_button.click()
-        very_short_sleep()
+            select = Select(action_button)
+            select.select_by_visible_text("Sell")
+            very_short_sleep()
 
-        select = Select(action_button)
-        select.select_by_visible_text("Sell")
-        very_short_sleep()
+            if (trade_share_count != 1):
+                qty_field = driver.find_element(By.XPATH, '//*[@id="ordernumber01inputqty-stepper-input"]')
+                qty_field.clear()
+                human_type(trade_share_count, qty_field)
 
-        # click review order
-        review_order_button = driver.find_element(By.XPATH, '//*[@id="mcaio-footer"]/div/div[2]/button[2]')
-        review_order_button.click()
-        short_sleep()
+            # Click review order
+            review_order_button = driver.find_element(By.XPATH, '//*[@id="mcaio-footer"]/div/div[2]/button[2]')
+            review_order_button.click()
+            short_sleep()
 
-        # # check if limit is higher than current price
-        # try:
-        #     xpath = "//*[contains(@id, 'mctorderdetail') and contains(@id, 'CHECKBOX_0')]"
-        #     WebDriverWait(driver, 4).until(
-        #         EC.presence_of_element_located((By.XPATH, xpath))
-        #     )
-        #     higher_than_ask_checkbox = driver.find_element(By.XPATH, '//*[@id="mctorderdetailfbb8f5e5CHECKBOX_0"]')
-        #     higher_than_ask_checkbox.click()
-        #     print("Limit price is higher than actual, continuing with purchase...\n\n")
-        # except Exception as e:
-        #     pass
+            # # Check if limit is higher than current price
+            # try:
+            #     xpath = "//*[contains(@id, 'mctorderdetail') and contains(@id, 'CHECKBOX_0')]"
+            #     WebDriverWait(driver, 4).until(
+            #         EC.presence_of_element_located((By.XPATH, xpath))
+            #     )
+            #     higher_than_ask_checkbox = driver.find_element(By.XPATH, '//*[@id="mctorderdetailfbb8f5e5CHECKBOX_0"]')
+            #     higher_than_ask_checkbox.click()
+            #     print("Limit price is higher than actual, continuing with purchase...\n\n")
+            # except Exception as e:
+            #     pass
 
-        # place sell order
-        submit_buy = driver.find_element(By.XPATH, '//*[@id="mtt-place-button"]')
-        submit_buy.click()
-        short_sleep()
+            # Place sell order
+            submit_sell = driver.find_element(By.XPATH, '//*[@id="mtt-place-button"]')
+            submit_sell.click()
+            short_sleep()
 
-        print(f"Sell order for '{ticker}' submitted!")
+            print(f"Sell order for '{ticker}' submitted!")
 
-        # redirect
-        driver.get("https://client.schwab.com/app/trade/tom/trade")
-        short_sleep()
+            # redirect
+            driver.get("https://client.schwab.com/app/trade/tom/trade")
+            short_sleep()
 
     
 def complete_2fa_and_trade(session_id, two_fa_code=None):
@@ -342,7 +393,7 @@ def complete_2fa_and_trade(session_id, two_fa_code=None):
             # For simplicity, wait for a certain time and check if login is successful
             try:
                 WebDriverWait(driver, 120).until(
-                EC.url_to_be('https://secure.chase.com/web/auth/dashboard#/dashboard/overview')
+                EC.url_to_be('https://client.schwab.com/clientapps/accounts/summary/')
             )
             except TimeoutException:
                 logger.error("App Notification 2FA not approved within the expected time.")
@@ -356,8 +407,8 @@ def complete_2fa_and_trade(session_id, two_fa_code=None):
         # After 2FA, proceed with the trade
         if action == 'buy':
             trade_response = buy_after_login(driver, tickers, trade_share_count)
-        # elif action == 'sell':
-            # trade_response = sell_after_login(driver, tickers, trade_share_count)
+        elif action == 'sell':
+            trade_response = sell_after_login(driver, tickers, trade_share_count)
         else:
             logger.error("Invalid trade action specified.")
             return {'status': 'error', 'message': 'Invalid trade action specified.'}
