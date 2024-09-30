@@ -295,12 +295,16 @@ def buy(tickers, dir, prof, trade_share_count, username, password, two_fa_code=N
     
 def buy_after_login(driver, tickers, trade_share_count):
     wait = WebDriverWait(driver, 10)
-    # Determine the number of account rows
-    num_of_rows = driver.execute_script('''
-        let shadow_root = document.querySelector("#account-table-INVESTMENT").shadowRoot;
-        let tbody = shadow_root.querySelector("tbody");
-        return tbody.querySelectorAll("tr").length;
-    ''')
+    try:
+        # Determine the number of account rows
+        num_of_rows = driver.execute_script('''
+            let shadow_root = document.querySelector("#account-table-INVESTMENT").shadowRoot;
+            let tbody = shadow_root.querySelector("tbody");
+            return tbody.querySelectorAll("tr").length;
+        ''')
+    except Exception as e:
+        logger.error(f"Failed to determine number of account rows: {e}")
+        return {'status': 'error', 'message': f'Failed to determine number of accounts: {e}'}
 
     for i in range(num_of_rows):
         short_sleep()
@@ -327,7 +331,8 @@ def buy_after_login(driver, tickers, trade_share_count):
             driver.get(account_url)
             short_sleep()
 
-    print("No more accounts to process.")
+    logger.info("No more accounts to process.")
+    return {'status': 'success', 'message': 'All sell orders processed successfully.'}
 
 def sell(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
     logger.info(f"Initiating sell operation for {trade_share_count} shares of {tickers} by user {username}")

@@ -95,7 +95,8 @@ def login(driver, tempdir ,username, password):
                 }
                 return {'status': '2FA_required', 'method': 'text', 'session_id': session_id}
             except:
-                print(f"An error occurred with 2FA: {e}")
+                print("2FA not required. Login successful.")
+                return {'status': 'success'}
 
 def buy(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
     driver, temp_dir = start_regular_driver(dir, prof)

@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 two_fa_sessions = {}
 
-def login(driver, tempdir ,username, password):
+def login(driver, tempdir, username, password):
     short_sleep()
     wait = WebDriverWait(driver, 24)
     try:
@@ -27,6 +27,12 @@ def login(driver, tempdir ,username, password):
 
         # Attempt to detect 2FA
         try:
+            WebDriverWait(driver, 15).until(
+                EC.url_to_be('https://digital.fidelity.com/ftgw/digital/portfolio/summary')
+            )
+            logger.info("2FA not required. Login successful.")
+            return {'status': 'success'}
+        except:
             # Check for "Don't ask again" checkbox indicating 2FA is present
             dont_ask_again_button = wait.until(
                 EC.element_to_be_clickable((
@@ -96,14 +102,8 @@ def login(driver, tempdir ,username, password):
                     return {'status': '2FA_required', 'method': 'app', 'session_id': session_id}
 
                 except TimeoutException:
-                    logger.error("Failed to initiate 2FA via both Text and App.")
+                    logger.error("Failed to initiate 2FA.")
                     return {'status': 'error', 'message': 'Failed to initiate 2FA.'}
-
-        except TimeoutException:
-            logger.info("2FA not required. Login successful.")
-            save_cookies(driver, "f_cookies.pkl")
-            short_sleep()
-            return {'status': 'success'}
 
     except Exception as e:
         logger.error(f"Error during login: {str(e)}")
@@ -212,7 +212,7 @@ def complete_2fa_and_trade(session_id, two_fa_code=None):
 
 def buy(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
     logger.info(f"Initiating buy operation for {trade_share_count} shares of {tickers} by user {username}")
-    driver, temp_dir = start_headless_driver(dir, prof)
+    driver, temp_dir = start_regular_driver(dir, prof)
     try:
         driver.get("https://digital.fidelity.com/ftgw/digital/portfolio/summary")
         login_response = login(driver, temp_dir, username, password)
@@ -334,19 +334,19 @@ def buy_after_login(driver, tickers, trade_share_count):
         }
 
 
-def sell(ticker, dir, prof, trade_share_count, username, password, two_fa_code=None):
-    logger.info(f"Initiating sell operation for {trade_share_count} shares of {ticker} by user {username}")
-    driver, temp_dir = start_headless_driver()
+def sell(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
+    logger.info(f"Initiating sell operation for {trade_share_count} shares of {tickers} by user {username}")
+    driver, temp_dir = start_regular_driver()
     try:
         driver.get("https://digital.fidelity.com/ftgw/digital/portfolio/summary")
-        login_response = login(driver, username, password)
+        login_response = login(driver, temp_dir,username, password)
 
         if login_response['status'] == '2FA_required':
             logger.info(f"2FA required via {login_response['method']}.")
             # Store action details in the session
             session_id = login_response.get('session_id')
             two_fa_sessions[session_id]['action'] = 'sell'
-            two_fa_sessions[session_id]['ticker'] = ticker
+            two_fa_sessions[session_id]['tickers'] = tickers
             two_fa_sessions[session_id]['trade_share_count'] = trade_share_count
             return {
                 'status': '2FA_required',
@@ -357,7 +357,7 @@ def sell(ticker, dir, prof, trade_share_count, username, password, two_fa_code=N
 
         elif login_response['status'] == 'success':
             # Proceed with selling
-            trade_response = sell_after_login(driver, ticker, trade_share_count)
+            trade_response = sell_after_login(driver, tickers, trade_share_count)
             driver.quit()
             shutil.rmtree(temp_dir, ignore_errors=True)
             return trade_response
@@ -377,11 +377,11 @@ def sell(ticker, dir, prof, trade_share_count, username, password, two_fa_code=N
         shutil.rmtree(temp_dir, ignore_errors=True)
         return {
             'status': 'failure',
-            'message': f'Failed to sell {ticker}.',
+            'message': f'Failed to sell {tickers}.',
             'error': str(e)
         }
 
-def sell_after_login(driver, ticker, trade_share_count):
+def sell_after_login(driver, tickers, trade_share_count):
     try:
         account_count = getNumOfAccounts(driver)
         very_short_sleep()
@@ -395,50 +395,50 @@ def sell_after_login(driver, ticker, trade_share_count):
             very_short_sleep()
             switchAccounts(driver, num)
             short_sleep()
+            for ticker in tickers:
+                ticker_search(driver, ticker)
 
-            ticker_search(driver, ticker)
+                # Click sell
+                print("Clicking sell...")
+                logger.info(f"Attempting to sell {trade_share_count} shares of {ticker}")
+                sell_button = driver.find_element(By.XPATH, '//*[@id="action-sell"]/s-root/div')
+                sell_button.click()
+                very_short_sleep()
 
-            # Click sell
-            print("Clicking sell...")
-            logger.info(f"Attempting to sell {trade_share_count} shares of {ticker}")
-            sell_button = driver.find_element(By.XPATH, '//*[@id="action-sell"]/s-root/div')
-            sell_button.click()
-            very_short_sleep()
+                print("Entering quantity...")
+                logger.info(f"Entering quantity: {trade_share_count}")
+                # Enter quantity
+                qty_field = driver.find_element(By.XPATH, '//*[@id="eqt-shared-quantity"]')
+                qty_field.click()
+                very_short_sleep()
+                if str(trade_share_count).lower() == "all":   # sell all
+                    sell_all_button = driver.find_element(By.XPATH, '//*[@id="stock-quatity"]/div/div[2]/div/pvd3-button')
+                    sell_all_button.click()
+                else:   # sell user specified
+                    human_type(str(trade_share_count), qty_field)
+                very_short_sleep()
 
-            print("Entering quantity...")
-            logger.info(f"Entering quantity: {trade_share_count}")
-            # Enter quantity
-            qty_field = driver.find_element(By.XPATH, '//*[@id="eqt-shared-quantity"]')
-            qty_field.click()
-            very_short_sleep()
-            if str(trade_share_count).lower() == "all":   # sell all
-                sell_all_button = driver.find_element(By.XPATH, '//*[@id="stock-quatity"]/div/div[2]/div/pvd3-button')
-                sell_all_button.click()
-            else:   # sell user specified
-                human_type(str(trade_share_count), qty_field)
-            very_short_sleep()
+                # Click somewhere else to trigger events
+                price_area = driver.find_element(By.XPATH, '//*[@id="quote-panel"]/div/div[2]')
+                price_area.click()
+                very_short_sleep()
 
-            # Click somewhere else to trigger events
-            price_area = driver.find_element(By.XPATH, '//*[@id="quote-panel"]/div/div[2]')
-            price_area.click()
-            very_short_sleep()
+                # Click market sell
+                market_sell_button = driver.find_element(By.XPATH, '//*[@id="market-yes"]/s-root/div/label')
+                market_sell_button.click()
+                very_short_sleep()
 
-            # Click market sell
-            market_sell_button = driver.find_element(By.XPATH, '//*[@id="market-yes"]/s-root/div/label')
-            market_sell_button.click()
-            very_short_sleep()
+                preview_and_submit(driver)
 
-            preview_and_submit(driver)
-
-            # Start a new order
-            start_new_order(driver)
+                # Start a new order
+                start_new_order(driver)
 
         print("No more accounts to process.")
         return {
             'status': 'success',
-            'message': f'Sold {trade_share_count} shares of {ticker} through Fidelity.',
+            'message': f'Sold {trade_share_count} shares of {tickers} through Fidelity.',
             'data': {
-                'ticker': ticker,
+                'tickers': tickers,
                 'quantity': trade_share_count,
             }
         }
@@ -447,7 +447,7 @@ def sell_after_login(driver, ticker, trade_share_count):
         logger.error(f"Error during sell_after_login operation: {str(e)}")
         return {
             'status': 'failure',
-            'message': f'Failed to sell {ticker}.',
+            'message': f'Failed to sell {tickers}.',
             'error': str(e)
         }
     
@@ -515,9 +515,14 @@ def preview_and_submit(driver):
     
 
 def start_new_order(driver):
-    new_order_button = driver.find_element(By.XPATH, '//*[@id="eq-ticket__enter-new-order"]')
-    new_order_button.click()
-    short_sleep()
+    try:
+        new_order_button = WebDriverWait(driver, 9999).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="eq-ticket__enter-new-order"]'))
+        )
+        new_order_button.click()
+        short_sleep()
+    except:
+        pass
 
 def switchAccounts(driver, num):
     try:
