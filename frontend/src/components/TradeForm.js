@@ -200,6 +200,7 @@ function TradeForm({ action, onRemove }) {
             <option value="chase">Chase</option>
             <option value="fidelity">Fidelity</option>
             <option value="schwab">Schwab</option>
+            <option value="firstrade">First Trade</option>
           </select>
           <input
             type="number"
