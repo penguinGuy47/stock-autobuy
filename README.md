@@ -1,6 +1,12 @@
 A program that will automatically purchase stocks in a streamlined fashion after getting input from the user.
 
-Current upcoming updates:
+Currently supported brokers:
+- Chase
+- Fidelity
+- Schwab
+- First Trade
+
+Upcoming updates:
 - More brokerages
 - Headless
 - Improved UI
