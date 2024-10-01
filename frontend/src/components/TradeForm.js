@@ -3,7 +3,7 @@ import api from '../services/api';
 import { toast } from 'react-toastify';
 
 function TradeForm({ action, onRemove }) {
-  const [tickers, setTickers] = useState(action === 'buy' ? [''] : '');
+  const [tickers, setTickers] = useState(['']);
   const [broker, setBroker] = useState('');
   const [quantity, setQuantity] = useState('');
   const [username, setUsername] = useState('');
@@ -55,7 +55,7 @@ function TradeForm({ action, onRemove }) {
     try {
       const endpoint = action === 'buy' ? '/buy' : '/sell';
       const payload = {
-        tickers: action === 'buy' ? tickers : [tickers],
+        tickers: tickers,
         broker,
         quantity: parseInt(quantity),
         username,
@@ -119,7 +119,7 @@ function TradeForm({ action, onRemove }) {
   };
 
   const resetForm = () => {
-    setTickers(action === 'buy' ? [''] : '');
+    setTickers(['']);
     setBroker('');
     setQuantity('');
     setUsername('');
@@ -168,16 +168,28 @@ function TradeForm({ action, onRemove }) {
               )}
             </div>
           ))}
-          {action === 'sell' && (
-            <input
-              type="text"
-              placeholder="Ticker Symbol"
-              value={tickers}
-              onChange={(e) => setTickers(e.target.value.toUpperCase())}
-              required
-              style={styles.input}
-            />
-          )}
+          {action === 'sell' && tickers.map((ticker, index) => (
+            <div key={index} style={styles.tickerContainer}>
+              <input
+                type="text"
+                placeholder="Ticker Symbol"
+                value={ticker}
+                onChange={(e) => handleTickerChange(index, e.target.value)}
+                required
+                style={styles.input}
+              />
+              {index === tickers.length - 1 && (
+                <button type="button" onClick={addTickerField} style={styles.addTickerButton}>
+                  +
+                </button>
+              )}
+              {tickers.length > 1 && (
+                <button type="button" onClick={() => removeTickerField(index)} style={styles.removeTickerButton}>
+                  -
+                </button>
+              )}
+            </div>
+          ))}
           <select
             value={broker}
             onChange={(e) => setBroker(e.target.value)}
@@ -187,7 +199,7 @@ function TradeForm({ action, onRemove }) {
             <option value="">Select Broker</option>
             <option value="chase">Chase</option>
             <option value="fidelity">Fidelity</option>
-            {/* <option value="schwab">Schwab</option> */}
+            <option value="schwab">Schwab</option>
           </select>
           <input
             type="number"
