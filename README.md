@@ -1,4 +1,4 @@
-A program that will automatically purchase stocks in a streamlined fashion after getting input from the user.
+A program that will automatically buy/sell stocks in a streamlined fashion after getting input from the user.
 
 Currently supported brokers:
 - Chase
