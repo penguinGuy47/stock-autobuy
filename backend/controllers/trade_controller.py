@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from services.fidelity import buy, sell, complete_2fa_and_trade
 from services.chase import buy as chase_buy, sell as chase_sell
 from services.schwab import buy as schwab_buy, sell as schwab_sell
+from services.firstrade import buy as firstrade_buy, sell as firstrade_sell
 import logging
 import os
 
@@ -16,6 +17,7 @@ BROKER_SERVICES = {
     'chase': {'buy': chase_buy, 'sell': chase_sell},
     'fidelity': {'buy': buy, 'sell': sell},
     'schwab': {'buy': schwab_buy, 'sell': schwab_sell},
+    'firstrade': {'buy': firstrade_buy, 'sell': firstrade_sell},
 }
 
 @trade_bp.route('/buy', methods=['POST'])
@@ -108,6 +110,7 @@ def complete_2fa_endpoint():
         from services.fidelity import two_fa_sessions, complete_2fa_and_trade
         from services.chase import two_fa_sessions as chase_two_fa_sessions, complete_2fa_and_trade as chase_complete_2fa_and_trade
         from services.schwab import two_fa_sessions as schwab_two_fa_sessions, complete_2fa_and_trade as schwab_complete_2fa_and_trade
+        from services.firstrade import two_fa_sessions as firstrade_two_fa_sessions, complete_2fa_and_trade as firstrade_complete_2fa_and_trade
 
         # if session_id not in two_fa_sessions:
         #     logger.warning(f"Invalid session_id: {session_id}")
@@ -120,6 +123,11 @@ def complete_2fa_endpoint():
             )
         elif session_id in schwab_two_fa_sessions:
             trade_response = schwab_complete_2fa_and_trade(
+                session_id=session_id,
+                two_fa_code=two_fa_code
+            )
+        elif session_id in firstrade_two_fa_sessions:
+            trade_response = firstrade_complete_2fa_and_trade(
                 session_id=session_id,
                 two_fa_code=two_fa_code
             )
