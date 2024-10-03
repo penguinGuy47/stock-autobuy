@@ -3,6 +3,7 @@ from services.fidelity import buy, sell, complete_2fa_and_trade
 from services.chase import buy as chase_buy, sell as chase_sell
 from services.schwab import buy as schwab_buy, sell as schwab_sell
 from services.firstrade import buy as firstrade_buy, sell as firstrade_sell
+from services.wellsfargo import buy as wells_buy, sell as wells_sell
 import logging
 import os
 
@@ -18,6 +19,7 @@ BROKER_SERVICES = {
     'fidelity': {'buy': buy, 'sell': sell},
     'schwab': {'buy': schwab_buy, 'sell': schwab_sell},
     'firstrade': {'buy': firstrade_buy, 'sell': firstrade_sell},
+    'wells': {'buy': wells_buy, 'sell': wells_sell},
 }
 
 @trade_bp.route('/buy', methods=['POST'])
@@ -36,10 +38,10 @@ def buy_stock():
             logger.warning("Missing required fields in buy request.")
             return jsonify({'error': "Missing required fields: tickers, broker, quantity, username, password."}), 400
 
-        broker = broker.lower()
-        if broker not in BROKER_SERVICES:
-            logger.warning(f"Unsupported broker: {broker}")
-            return jsonify({'error': f"Unsupported broker: {broker}"}), 400
+        # broker = broker.lower()
+        # if broker not in BROKER_SERVICES:
+        #     logger.warning(f"Unsupported broker: {broker}")
+        #     return jsonify({'error': f"Unsupported broker: {broker}"}), 400
 
         service = BROKER_SERVICES[broker]['buy']
         response = service(
@@ -73,10 +75,10 @@ def sell_stock():
             logger.warning("Missing required fields in sell request.")
             return jsonify({'error': "Missing required fields: ticker, broker, quantity, username, password."}), 400
 
-        broker = broker.lower()
-        if broker not in BROKER_SERVICES:
-            logger.warning(f"Unsupported broker: {broker}")
-            return jsonify({'error': f"Unsupported broker: {broker}"}), 400
+        # broker = broker.lower()
+        # if broker not in BROKER_SERVICES:
+        #     logger.warning(f"Unsupported broker: {broker}")
+        #     return jsonify({'error': f"Unsupported broker: {broker}"}), 400
 
         service = BROKER_SERVICES[broker]['sell']
         response = service(
@@ -111,6 +113,7 @@ def complete_2fa_endpoint():
         from services.chase import two_fa_sessions as chase_two_fa_sessions, complete_2fa_and_trade as chase_complete_2fa_and_trade
         from services.schwab import two_fa_sessions as schwab_two_fa_sessions, complete_2fa_and_trade as schwab_complete_2fa_and_trade
         from services.firstrade import two_fa_sessions as firstrade_two_fa_sessions, complete_2fa_and_trade as firstrade_complete_2fa_and_trade
+        from services.wellsfargo import two_fa_sessions as wells_two_fa_sessions, complete_2fa_and_trade as wells_complete_2fa_and_trade
 
         # if session_id not in two_fa_sessions:
         #     logger.warning(f"Invalid session_id: {session_id}")
@@ -128,6 +131,11 @@ def complete_2fa_endpoint():
             )
         elif session_id in firstrade_two_fa_sessions:
             trade_response = firstrade_complete_2fa_and_trade(
+                session_id=session_id,
+                two_fa_code=two_fa_code
+            )
+        elif session_id in wells_two_fa_sessions:
+            trade_response = wells_complete_2fa_and_trade(
                 session_id=session_id,
                 two_fa_code=two_fa_code
             )
