@@ -249,7 +249,7 @@ def navigate_to_dashboard(driver):
 
 def buy(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
     logger.info(f"Initiating buy operation for {trade_share_count} shares of {tickers} by user {username}")
-    driver, temp_dir = start_headless_driver(dir, prof)
+    driver, temp_dir = start_regular_driver(dir, prof)
     try:
         driver.get("https://secure.chase.com/web/auth/dashboard#/dashboard/overviewAccounts/overview/index")
         login_response = login(driver, temp_dir, username, password)
@@ -500,7 +500,7 @@ def complete_2fa_and_trade(session_id, two_fa_code=None):
             # Implement a polling mechanism or a waiting period
             # For simplicity, wait for a certain time and check if login is successful
             try:
-                WebDriverWait(driver, 120).until(
+                WebDriverWait(driver, 25).until(
                 EC.url_to_be('https://secure.chase.com/web/auth/dashboard#/dashboard/overview')
             )
             except TimeoutException:
