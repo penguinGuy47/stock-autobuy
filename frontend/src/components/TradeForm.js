@@ -201,6 +201,7 @@ function TradeForm({ action, onRemove }) {
             <option value="fidelity">Fidelity</option>
             <option value="schwab">Schwab</option>
             <option value="firstrade">First Trade</option>
+            <option value="wells">Wells Fargo</option>
           </select>
           <input
             type="number"
@@ -237,7 +238,7 @@ function TradeForm({ action, onRemove }) {
             <>
               <input
                 type="text"
-                placeholder="Enter 2FA Code"
+                placeholder = {`Enter ${capitalize(broker)} 2FA Code`}
                 value={twoFaCode}
                 onChange={(e) => setTwoFaCode(e.target.value)}
                 required
@@ -249,7 +250,7 @@ function TradeForm({ action, onRemove }) {
             </>
           ) : (
             <>
-              <p>Please handle the 2FA</p>
+              <p>Please approve the 2FA sent to your {capitalize(broker)} app</p>
               <button type="submit" style={styles.button} disabled={loading}>
                 {loading ? 'Confirming...' : 'Confirm Approval'}
               </button>
