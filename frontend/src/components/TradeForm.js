@@ -8,9 +8,9 @@ function TradeForm({ action, onRemove }) {
   const [quantity, setQuantity] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [twoFaCode, setTwoFaCode] = useState(''); // State for 2FA code
-  const [sessionId, setSessionId] = useState(null); // State for session ID
-  const [method, setMethod] = useState(null); // State for 2FA method ('text' or 'app')
+  const [twoFaCode, setTwoFaCode] = useState('');
+  const [sessionId, setSessionId] = useState(null);
+  const [method, setMethod] = useState(null); // 'text' or 'captcha_and_text'
   const [loading, setLoading] = useState(false);
 
   const handleTickerChange = (index, value) => {
@@ -35,7 +35,7 @@ function TradeForm({ action, onRemove }) {
     // Basic validation
     if (
       (action === 'buy' && tickers.some(ticker => ticker === '')) ||
-      (action === 'sell' && !tickers) ||
+      (action === 'sell' && !tickers.length) ||
       !broker ||
       !quantity ||
       !username ||
@@ -64,20 +64,23 @@ function TradeForm({ action, onRemove }) {
       const response = await api.post(endpoint, payload);
 
       if (response.data.status === 'success') {
-        toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} successful.`);
+        toast.success(`${capitalize(action)} successful.`);
         resetForm();
       } else if (response.data.status === '2FA_required') {
-        // Set session ID and method for 2FA
         setSessionId(response.data.session_id);
-        setMethod(response.data.method);
-        toast.info('2FA is required');
+        setMethod(response.data.method); // 'text' or 'captcha_and_text'
+        if (response.data.method === 'captcha_and_text') {
+          toast.info('Captcha and 2FA are required. Please solve the Captcha in the browser and enter your 2FA code below.');
+        } else {
+          toast.info('2FA is required. Please enter your 2FA code below.');
+        }
       } else {
-        toast.error(`${action.charAt(0).toUpperCase() + action.slice(1)} failed: ${response.data.message || 'Unknown error.'}`);
+        toast.error(`${capitalize(action)} failed: ${response.data.message || 'Unknown error.'}`);
         resetForm();
-    }
+      }
     } catch (error) {
-      console.error(`${action} failed:`, error.response ? error.response.data : error.message);
-      toast.error(`${action.charAt(0).toUpperCase() + action.slice(1)} failed: ${error.response?.data?.error || 'Unknown error.'}`);
+      console.error(`${capitalize(action)} failed:`, error.response ? error.response.data : error.message);
+      toast.error(`${capitalize(action)} failed: ${error.response?.data?.error || 'Unknown error.'}`);
     } finally {
       setLoading(false);
     }
@@ -86,8 +89,8 @@ function TradeForm({ action, onRemove }) {
   const handle2FASubmit = async (e) => {
     e.preventDefault();
 
-    if (method === 'text' && !twoFaCode) {
-      toast.error('Please enter the 2FA code received via text.');
+    if ((method === 'text' || method === 'captcha_and_text') && !twoFaCode) {
+      toast.error('Please enter the 2FA code.');
       return;
     }
 
@@ -95,23 +98,20 @@ function TradeForm({ action, onRemove }) {
     try {
       const payload = {
         session_id: sessionId,
-        two_fa_code: method === 'text' ? twoFaCode : null, // Only send code if text-based
+        two_fa_code: twoFaCode,
       };
       const response = await api.post('/complete_2fa', payload);
 
       if (response.data.status === 'success') {
-        toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} successful.`);
+        toast.success(`${capitalize(action)} successful.`);
         resetForm();
-      } else if (response.data.status === 'error') {
-        toast.error(`${action.charAt(0).toUpperCase() + action.slice(1)} failed: ${response.data.message || 'Unknown error.'}`);
-        // reset2FA();
       } else {
-        toast.error(`${action.charAt(0).toUpperCase() + action.slice(1)} failed: ${response.data.message || 'Unknown error.'}`);
+        toast.error(`${capitalize(action)} failed: ${response.data.message || 'Unknown error.'}`);
         resetForm();
       }
     } catch (error) {
-      console.error(`${action} failed during 2FA:`, error.response ? error.response.data : error.message);
-      toast.error(`${action.charAt(0).toUpperCase() + action.slice(1)} failed during 2FA: ${error.response?.data?.error || 'Unknown error.'}`);
+      console.error(`${capitalize(action)} failed during 2FA:`, error.response ? error.response.data : error.message);
+      toast.error(`${capitalize(action)} failed during 2FA: ${error.response?.data?.error || 'Unknown error.'}`);
       resetForm();
     } finally {
       setLoading(false);
@@ -129,13 +129,6 @@ function TradeForm({ action, onRemove }) {
     setMethod(null);
   };
 
-  const reset2FA = () => {
-    setTwoFaCode('');
-    setSessionId(null);
-    setMethod(null);
-  };
-
-
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (
@@ -146,29 +139,7 @@ function TradeForm({ action, onRemove }) {
       </button>
       {!sessionId ? (
         <form onSubmit={handleSubmit} style={styles.form}>
-          {action === 'buy' && tickers.map((ticker, index) => (
-            <div key={index} style={styles.tickerContainer}>
-              <input
-                type="text"
-                placeholder="Ticker Symbol"
-                value={ticker}
-                onChange={(e) => handleTickerChange(index, e.target.value)}
-                required
-                style={styles.input}
-              />
-              {index === tickers.length - 1 && (
-                <button type="button" onClick={addTickerField} style={styles.addTickerButton}>
-                  +
-                </button>
-              )}
-              {tickers.length > 1 && (
-                <button type="button" onClick={() => removeTickerField(index)} style={styles.removeTickerButton}>
-                  -
-                </button>
-              )}
-            </div>
-          ))}
-          {action === 'sell' && tickers.map((ticker, index) => (
+          {tickers.map((ticker, index) => (
             <div key={index} style={styles.tickerContainer}>
               <input
                 type="text"
@@ -199,8 +170,9 @@ function TradeForm({ action, onRemove }) {
             <option value="">Select Broker</option>
             <option value="chase">Chase</option>
             <option value="fidelity">Fidelity</option>
-            <option value="schwab">Schwab</option>
             <option value="firstrade">First Trade</option>
+            <option value="schwab">Schwab</option>
+            <option value="webull">Webull</option>
             <option value="wells">Wells Fargo</option>
           </select>
           <input
@@ -214,7 +186,7 @@ function TradeForm({ action, onRemove }) {
           />
           <input
             type="text"
-            placeholder="Broker Username"
+            placeholder={broker === "webull" ? `Phone Number` : "Broker Username"}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -234,28 +206,25 @@ function TradeForm({ action, onRemove }) {
         </form>
       ) : (
         <form onSubmit={handle2FASubmit} style={styles.form}>
-          {method === 'text' ? (
+          {method === 'captcha_and_text' && (
             <>
-              <input
-                type="text"
-                placeholder = {`Enter ${capitalize(broker)} 2FA Code`}
-                value={twoFaCode}
-                onChange={(e) => setTwoFaCode(e.target.value)}
-                required
-                style={styles.input}
-              />
-              <button type="submit" style={styles.button} disabled={loading}>
-                {loading ? 'Submitting...' : 'Submit 2FA Code'}
-              </button>
-            </>
-          ) : (
-            <>
-              <p>Please approve the 2FA sent to your {capitalize(broker)} app</p>
-              <button type="submit" style={styles.button} disabled={loading}>
-                {loading ? 'Confirming...' : 'Confirm Approval'}
-              </button>
+              <p>
+                A Captcha has been detected in your trading browser. Please solve it manually in the browser window.
+                After solving the Captcha, enter your 2FA code below.
+              </p>
             </>
           )}
+          <input
+            type="text"
+            placeholder={`Enter ${capitalize(broker)} 2FA Code`}
+            value={twoFaCode}
+            onChange={(e) => setTwoFaCode(e.target.value)}
+            required
+            style={styles.input}
+          />
+          <button type="submit" style={styles.button} disabled={loading}>
+            {loading ? 'Submitting...' : 'Submit 2FA Code'}
+          </button>
         </form>
       )}
     </div>
