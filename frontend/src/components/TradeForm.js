@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
+import styled from 'styled-components';
+import '../App.css';
 
 function TradeForm({ action, onRemove }) {
   const [tickers, setTickers] = useState(['']);
@@ -132,172 +134,297 @@ function TradeForm({ action, onRemove }) {
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (
-    <div style={styles.container}>
-      <h3>{capitalize(action)} Stock</h3>
-      <button onClick={onRemove} style={styles.removeFormButton} disabled={loading}>
-        Remove
-      </button>
+    <FormContainer>
+      <FormHeader>
+        <FormTitle>{capitalize(action)} Stock</FormTitle>
+        <RemoveButton onClick={onRemove} disabled={loading} aria-label="Remove Form">
+          &times;
+        </RemoveButton>
+      </FormHeader>
       {!sessionId ? (
-        <form onSubmit={handleSubmit} style={styles.form}>
-          {tickers.map((ticker, index) => (
-            <div key={index} style={styles.tickerContainer}>
-              <input
-                type="text"
-                placeholder="Ticker Symbol"
-                value={ticker}
-                onChange={(e) => handleTickerChange(index, e.target.value)}
-                required
-                style={styles.input}
-              />
-              {index === tickers.length - 1 && (
-                <button type="button" onClick={addTickerField} style={styles.addTickerButton}>
-                  +
-                </button>
-              )}
-              {tickers.length > 1 && (
-                <button type="button" onClick={() => removeTickerField(index)} style={styles.removeTickerButton}>
-                  -
-                </button>
-              )}
-            </div>
-          ))}
-          <select
-            value={broker}
-            onChange={(e) => setBroker(e.target.value)}
-            required
-            style={styles.input}
-          >
-            <option value="">Select Broker</option>
-            <option value="chase">Chase</option>
-            <option value="fidelity">Fidelity</option>
-            <option value="firstrade">First Trade</option>
-            <option value="schwab">Schwab</option>
-            <option value="webull">Webull</option>
-            <option value="wells">Wells Fargo</option>
-          </select>
-          <input
-            type="number"
-            placeholder="Quantity"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            min="1"
-            required
-            style={styles.input}
-          />
-          <input
-            type="text"
-            placeholder={broker === "webull" ? `Phone Number` : "Broker Username"}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            style={styles.input}
-          />
-          <input
-            type="password"
-            placeholder="Broker Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={styles.input}
-          />
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Processing...' : capitalize(action)}
-          </button>
+        <form onSubmit={handleSubmit}>
+          {/* Ticker Fields */}
+          <FormRow>
+            <Label>Ticker Symbol(s)</Label>
+            <TickerWrapper>
+              {tickers.map((ticker, index) => (
+                <TickerContainer key={index}>
+                  <TickerInput
+                    type="text"
+                    placeholder="Ticker"
+                    value={ticker}
+                    onChange={(e) => handleTickerChange(index, e.target.value)}
+                    required
+                  />
+                  {tickers.length > 1 && (
+                    <RemoveTickerButton
+                      type="button"
+                      onClick={() => removeTickerField(index)}
+                      disabled={loading}
+                      aria-label="Remove Ticker"
+                    >
+                      &ndash;
+                    </RemoveTickerButton>
+                  )}
+                  {index === tickers.length - 1 && (
+                    <AddTickerButton
+                      type="button"
+                      onClick={addTickerField}
+                      disabled={loading}
+                      aria-label="Add Ticker"
+                    >
+                      +
+                    </AddTickerButton>
+                  )}
+                </TickerContainer>
+              ))}
+            </TickerWrapper>
+          </FormRow>
+
+          {/* Broker Selection */}
+          <FormRow>
+            <Label>Broker</Label>
+            <Select
+              value={broker}
+              onChange={(e) => setBroker(e.target.value)}
+              required
+            >
+              <option value="">Select Broker</option>
+              <option value="chase">Chase</option>
+              <option value="fidelity">Fidelity</option>
+              <option value="firstrade">First Trade</option>
+              <option value="schwab">Schwab</option>
+              <option value="webull">Webull</option>
+              <option value="wells">Wells Fargo</option>
+            </Select>
+          </FormRow>
+
+          {/* Quantity */}
+          <FormRow>
+            <Label>Quantity</Label>
+            <Input
+              type="number"
+              placeholder="Quantity"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              min="1"
+              required
+            />
+          </FormRow>
+
+          {/* Username */}
+          <FormRow>
+            <Label>{broker === 'webull' ? 'Phone Number' : 'Broker Username'}</Label>
+            <Input
+              type="text"
+              placeholder={broker === 'webull' ? 'Phone Number' : 'Broker Username'}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </FormRow>
+
+          {/* Password */}
+          <FormRow>
+            <Label>Broker Password</Label>
+            <Input
+              type="password"
+              placeholder="Broker Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </FormRow>
+
+          {/* Submit Button */}
+          <FormRow>
+            <EmptyCell />
+            <SubmitButton type="submit" disabled={loading}>
+              {loading ? 'Processing...' : capitalize(action)}
+            </SubmitButton>
+          </FormRow>
         </form>
       ) : (
-        <form onSubmit={handle2FASubmit} style={styles.form}>
+        <form onSubmit={handle2FASubmit}>
           {method === 'captcha_and_text' && (
-            <>
-              <p>
+            <InfoRow>
+              <EmptyCell />
+              <InfoText>
                 A Captcha has been detected in your trading browser. Please solve it manually in the browser window.
                 After solving the Captcha, enter your 2FA code below.
-              </p>
-            </>
+              </InfoText>
+            </InfoRow>
           )}
-          <input
-            type="text"
-            placeholder={`Enter ${capitalize(broker)} 2FA Code`}
-            value={twoFaCode}
-            onChange={(e) => setTwoFaCode(e.target.value)}
-            required
-            style={styles.input}
-          />
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Submitting...' : 'Submit 2FA Code'}
-          </button>
+          {method === 'text' && (
+            <InfoRow>
+              <EmptyCell />
+              <InfoText>
+                2FA is required. Please enter your 2FA code below.
+              </InfoText>
+            </InfoRow>
+          )}
+          <FormRow>
+            <Label>2FA Code</Label>
+            <Input
+              type="text"
+              placeholder={`Enter ${capitalize(broker)} 2FA Code`}
+              value={twoFaCode}
+              onChange={(e) => setTwoFaCode(e.target.value)}
+              required
+            />
+          </FormRow>
+          <FormRow>
+            <EmptyCell />
+            <SubmitButton type="submit" disabled={loading}>
+              {loading ? 'Submitting...' : 'Submit 2FA Code'}
+            </SubmitButton>
+          </FormRow>
         </form>
       )}
-    </div>
+    </FormContainer>
   );
 }
 
-const styles = {
-  container: {
-    maxWidth: '500px',
-    margin: '1rem auto',
-    padding: '1rem',
-    border: '1px solid #ccc',
-    borderRadius: '5px',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  tickerContainer: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-  input: {
-    padding: '0.5rem',
-    margin: '0.5rem 0',
-    flex: 1,
-  },
-  addTickerButton: {
-    padding: '0.5rem',
-    marginLeft: '0.2rem',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    borderRadius: '3px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '30px',
-    height: '30px',
-  },
-  removeTickerButton: {
-    padding: '0.5rem',
-    marginLeft: '0.2rem',
-    backgroundColor: '#d9534f',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    borderRadius: '3px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '30px',
-    height: '30px',
-  },
-  removeFormButton: {
-    top: '10px',
-    right: '10px',
-    backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
-    padding: '0.3rem 0.6rem',
-    cursor: 'pointer',
-    borderRadius: '3px',
-  },
-  button: {
-    padding: '0.5rem',
-    backgroundColor: '#282c34',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    marginTop: '1rem',
-  },
-};
+const FormContainer = styled.div`
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 300px; /* Adjust based on desired form width */
+  box-sizing: border-box;
+`;
+
+const FormHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+`;
+
+const FormTitle = styled.h3`
+  margin: 0;
+  font-size: 1.25rem;
+  color: #333333;
+`;
+
+const RemoveButton = styled.button`
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  font-size: 1.2rem;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  cursor: pointer;
+  
+  &:hover {
+    background-color: #c82333;
+  }
+`;
+
+const FormRow = styled.div`
+  display: contents;
+`;
+
+const Label = styled.label`
+  font-weight: bold;
+  color: #555555;
+  margin-bottom: 0.5rem;
+  display: block;
+`;
+
+const EmptyCell = styled.div``;
+
+const Input = styled.input`
+  padding: 0.6rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+`;
+
+const Select = styled.select`
+  padding: 0.6rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #ffffff;
+`;
+
+const TickerWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
+const TickerContainer = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+const TickerInput = styled.input`
+  flex: 1;
+  padding: 0.6rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+`;
+
+const AddTickerButton = styled.button`
+  margin-left: 0.5rem;
+  padding: 0.6rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  
+  &:hover {
+    background-color: #218838;
+  }
+`;
+
+const RemoveTickerButton = styled.button`
+  margin-left: 0.5rem;
+  padding: 0.6rem;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  
+  &:hover {
+    background-color: #c82333;
+  }
+`;
+
+const SubmitButton = styled.button`
+  margin-top: 10px;
+  padding: 0.5rem;
+  background-color: #16423C;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  
+  &:hover {
+    background-color: #0069d9;
+  }
+`;
+
+const InfoRow = styled.div`
+  display: contents;
+`;
+
+const InfoText = styled.p`
+  color: #555555;
+  font-size: 0.95rem;
+  margin: 0;
+`;
 
 export default TradeForm;
