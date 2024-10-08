@@ -3,8 +3,10 @@ from services.fidelity import buy, sell, complete_2fa_and_trade
 from services.chase import buy as chase_buy, sell as chase_sell
 from services.schwab import buy as schwab_buy, sell as schwab_sell
 from services.firstrade import buy as firstrade_buy, sell as firstrade_sell
+from services.webull import buy as webull_buy
 from services.wellsfargo import buy as wells_buy, sell as wells_sell
 import logging
+
 import os
 
 trade_bp = Blueprint('trade_bp', __name__)
@@ -17,8 +19,9 @@ logger = logging.getLogger(__name__)
 BROKER_SERVICES = {
     'chase': {'buy': chase_buy, 'sell': chase_sell},
     'fidelity': {'buy': buy, 'sell': sell},
-    'schwab': {'buy': schwab_buy, 'sell': schwab_sell},
     'firstrade': {'buy': firstrade_buy, 'sell': firstrade_sell},
+    'schwab': {'buy': schwab_buy, 'sell': schwab_sell},
+    'webull': {'buy': webull_buy},
     'wells': {'buy': wells_buy, 'sell': wells_sell},
 }
 
@@ -114,6 +117,7 @@ def complete_2fa_endpoint():
         from services.schwab import two_fa_sessions as schwab_two_fa_sessions, complete_2fa_and_trade as schwab_complete_2fa_and_trade
         from services.firstrade import two_fa_sessions as firstrade_two_fa_sessions, complete_2fa_and_trade as firstrade_complete_2fa_and_trade
         from services.wellsfargo import two_fa_sessions as wells_two_fa_sessions, complete_2fa_and_trade as wells_complete_2fa_and_trade
+        from services.webull import two_fa_sessions as webull_two_fa_sessions, complete_2fa_and_trade as webull_complete_2fa_and_trade
 
         # if session_id not in two_fa_sessions:
         #     logger.warning(f"Invalid session_id: {session_id}")
@@ -136,6 +140,11 @@ def complete_2fa_endpoint():
             )
         elif session_id in wells_two_fa_sessions:
             trade_response = wells_complete_2fa_and_trade(
+                session_id=session_id,
+                two_fa_code=two_fa_code
+            )
+        elif session_id in webull_two_fa_sessions:
+            trade_response = webull_complete_2fa_and_trade(
                 session_id=session_id,
                 two_fa_code=two_fa_code
             )
