@@ -119,11 +119,12 @@ def complete_2fa_endpoint():
         from services.wellsfargo import two_fa_sessions as wells_two_fa_sessions, complete_2fa_and_trade as wells_complete_2fa_and_trade
         from services.webull import two_fa_sessions as webull_two_fa_sessions, complete_2fa_and_trade as webull_complete_2fa_and_trade
 
-        # if session_id not in two_fa_sessions:
-        #     logger.warning(f"Invalid session_id: {session_id}")
-        #     return jsonify({'error': 'Invalid session_id.'}), 400
-        # el
-        if session_id in chase_two_fa_sessions:
+        if session_id in two_fa_sessions:
+            trade_response = complete_2fa_and_trade(
+                session_id=session_id,
+                two_fa_code=two_fa_code
+            )
+        elif session_id in chase_two_fa_sessions:
             trade_response = chase_complete_2fa_and_trade(
                 session_id=session_id,
                 two_fa_code=two_fa_code
