@@ -48,10 +48,10 @@ def login(driver, tempdir ,username, password):
             'temp_dir': tempdir,  # Store temp_dir for cleanup, delete later
             'username': username,
             'password': password,
-            'method': 'text',
+            'method': 'app',
             'action': None  # Set by buy/sell functions
         }
-        return {'status': '2FA_required', 'method': 'text', 'session_id': session_id}
+        return {'status': '2FA_required', 'method': 'app', 'session_id': session_id}
     except:
         try: 
             print("An error occurred during mobile authentication, trying text authentication")
@@ -385,7 +385,6 @@ def complete_2fa_and_trade(session_id, two_fa_code=None):
             submit_code.click()
 
             logger.info("Submitted 2FA code via text.")
-            short_sleep()
 
         elif method == 'app':
             # Wait for user to approve app notification
@@ -393,7 +392,7 @@ def complete_2fa_and_trade(session_id, two_fa_code=None):
             # Implement a polling mechanism or a waiting period
             # For simplicity, wait for a certain time and check if login is successful
             try:
-                WebDriverWait(driver, 120).until(
+                WebDriverWait(driver, 25).until(
                 EC.url_to_be('https://client.schwab.com/clientapps/accounts/summary/')
             )
             except TimeoutException:

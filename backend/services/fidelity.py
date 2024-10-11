@@ -486,13 +486,18 @@ def getNumOfAccounts(driver):
         print("Could not get the number of accounts...")
 
 def ticker_search(driver, ticker):
-    search = driver.find_element(By.XPATH, '//*[@id="eq-ticket-dest-symbol"]')
+    try:
+        search = WebDriverWait(driver,10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="eq-ticket-dest-symbol"]'))
+        )
 
-    # enter ticker
-    human_type(ticker, search)
-    very_short_sleep()
-    search.send_keys(Keys.ENTER)
-    very_short_sleep()
+        # enter ticker
+        human_type(ticker, search)
+        very_short_sleep()
+        search.send_keys(Keys.ENTER)
+        very_short_sleep()
+    except:
+        print("Could not find ticker field")
 
 def preview_and_submit(driver):
     print("previewing... ")
