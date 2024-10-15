@@ -1,4 +1,5 @@
 from utils.sleep import *
+from selenium.webdriver.common.action_chains import ActionChains
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -7,14 +8,10 @@ logger = logging.getLogger(__name__)
 two_fa_sessions = {}
 
 # TODO:
-# add login
-# add buy
-# add account switching
-# add multi buy function
 def login(driver, tempdir, username, password):
     try:
         # Login logic
-        username_field = WebDriverWait(driver,15).until(
+        username_field = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, '//*[@id="userid"]'))
         )
         human_type(username, username_field)
@@ -27,7 +24,7 @@ def login(driver, tempdir, username, password):
         sign_on_button = driver.find_element(By.XPATH, '//*[@id="btnSignon"]')
         sign_on_button.click()
 
-        send_mobile_2fa = WebDriverWait(driver, 15).until(
+        send_mobile_2fa = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, '//*[@id="app-modal-root"]/div[4]/div/div/div/div/div/div/div/div[2]/div/div[2]/div[2]/div/ul/li[1]/button'))
         )
         send_mobile_2fa.click()
@@ -108,13 +105,32 @@ def buy_after_login(driver, tickers, trade_share_count):
             EC.element_to_be_clickable((By.XPATH, '//*[@id="dropdown2"]'))
         )
         select_account_dropdown.click()
+        very_short_sleep()
 
         # Obtain number of accounts
         li_elements = driver.find_elements(By.CSS_SELECTOR, '#dropdownlist2 li')
 
-        for account_num in li_elements:
-            account_select = driver.find_element(By.XPATH, f'//*[@id="dropdownlist2"]/li[{account_num}]')
+        for i in range(1, len(li_elements) + 1):
+            select_account_dropdown = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="dropdown2"]'))
+            )
+
+            if (i != 1):
+                select_account_dropdown.click()
+
+            account_select = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, f'//*[@id="dropdownlist2"]/li[{i}]'))
+            )
             account_select.click()
+
+            try:
+                switch_ticket_conf = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, '//*[@id="btn-continue"]'))
+                )
+                switch_ticket_conf.click()
+            except:
+                pass
+            short_sleep()
 
             try: 
                 select_action = WebDriverWait(driver, 10).until(
@@ -125,64 +141,116 @@ def buy_after_login(driver, tickers, trade_share_count):
                 for ticker in tickers:
                     short_sleep()
                     order_url = driver.current_url
+                    try:
+                        buy_action = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, '//*[@id="eqentryfrm"]/div/div[1]/div[1]/div[1]/div[2]/ul/li[1]/a'))
+                        )
+                        buy_action.click()
+                        very_short_sleep()
 
-                    buy_action = driver.find_element(By.XPATH, '//*[@id="LOelALfK8Y"]')
-                    # sell: //*[@id="eqentryfrm"]/div/div[1]/div[1]/div[1]/div[2]/ul/li[2]/a
-                    buy_action.click()
-                    very_short_sleep()
-
-                    conduct_trade(driver, ticker, trade_share_count)
-                    driver.get(order_url)
+                        conduct_trade(driver, ticker, trade_share_count, "buy")
+                        driver.get(order_url)
+                    except:
+                        logger.info("Error conducting buy action")
             except:
-                print("Error configuring trade")
+                logger.info("Error configuring trade")
     except:
-        print("Error occurred in trade ticket")
+        logger.info("Error occurred in trade ticket")
 
-    print("No more accounts to process.")
+    logger.info("No more accounts to process.")
     driver.quit()
     # handle_popup(driver)
     
-def conduct_trade(driver, ticker, trade_share_count):
-    ticker_input = driver.find_element(By.XPATH, '//*[@id="Symbol"]')
-    human_type(ticker, ticker_input)
-    very_short_sleep()
-
-    share_qty = driver.find_element(By.XPATH, '//*[@id="OrderQuantity"]')
-    human_type(trade_share_count, share_qty)
-    very_short_sleep()
-
-    order_type = driver.find_element(By.XPATH, '//*[@id="OrderTypeBtnText"]')
-    order_type.click()
-
-    limit_order = driver.find_element(By.XPATH, '//*[@id="ordertyperow"]/div[2]/div[2]/ul/li[1]/a')
-    limit_order.click()
-    very_short_sleep()
-
-    current_price = driver.execute_script('document.querySelector("#prevdata > div.quoteestimate > div:nth-child(1) > div.qedata > div.qeval").textContent')
-    current_price += 0.1  # Adjust for higher odds in order fill
-    current_price = f"{current_price:.2f}"
-
-    limit_input = driver.find_element(By.XPATH, '//*[@id="Price"]')
-    human_type(current_price, limit_input)
-
-    timing_select = driver.find_element(By.XPATH, '//*[@id="TIFBtnText"]')
-    timing_select.click()
-
-    day_select = driver.find_element(By.XPATH, '//*[@id="eqentryfrm"]/div/div[1]/div[5]/div/div[2]/div/ul/li[1]/a')
-    day_select.click()
-
-    preview_button = driver.find_element(By.XPATH, '//*[@id="actionbtnContinue"]')
-    preview_button.click()
-
+def conduct_trade(driver, ticker, trade_share_count, trade_type):
+    wait = WebDriverWait(driver, 10)
     try:
-        submit_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@id="actionbtnbar"]/button[2]'))
+        ticker_input = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="Symbol"]'))
         )
-        submit_button.click()
-    except:
-        print("Error submitting order")
-    very_short_sleep()
+        human_type(ticker, ticker_input)
+        ticker_input.send_keys(Keys.ENTER)
 
+        share_qty = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="OrderQuantity"]'))
+        )
+        driver.execute_script("arguments[0].scrollIntoView(true);", share_qty)
+        very_short_sleep()
+
+        human_type(str(trade_share_count), share_qty)
+        very_short_sleep()
+
+        order_type = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="OrderTypeBtnText"]'))
+        )
+        order_type.click()
+
+        limit_order = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="ordertyperow"]/div[2]/div[2]/ul/li[1]/a'))
+        )
+        limit_order.click()
+        very_short_sleep()
+
+        if trade_type == "buy":
+            # ASK
+            current_price = driver.find_element(By.XPATH, '//*[@id="prevdata"]/div[3]/div[1]/div[2]/div[1]').text
+            price_as_float = float(current_price) + 0.1
+        else:
+            # BID
+            current_price = driver.find_element(By.XPATH, '//*[@id="prevdata"]/div[3]/div[2]/div[2]/div[1]').text
+            price_as_float = float(current_price) - 0.1
+
+        current_price = f"{price_as_float:.2f}"  # Format back to string with 2 decimal places
+        limit_input = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="Price"]'))
+        )
+        human_type(current_price, limit_input)
+        very_short_sleep()
+
+        timing_select = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="TIFBtnText"]'))
+        )
+        timing_select.click()
+        very_short_sleep()
+
+        day_select = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="eqentryfrm"]/div/div[1]/div[6]/div/div[2]/div/ul/li[1]/a'))
+        )
+        day_select.click()
+        very_short_sleep()
+
+        preview_button = wait.until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="actionbtnContinue"]'))
+        )
+        preview_button.click()
+        very_short_sleep()
+
+        try:
+            submit_button = wait.until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="actionbtnbar"]/button[2]'))
+            )
+            driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
+            short_sleep()
+            submit_button.click()
+        except:
+            logger.info("Error submitting order")
+            driver.quit()
+    except:
+        logger.info("Error conducting trade...")
+
+def enterTradeTicket(driver):
+    try:
+        print("Initiating buy...")
+        portfolio_tab = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="MrA7JYMdjr"]/a'))
+        )
+        portfolio_tab.click()
+
+        trade_tab = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@id="gotrading"]'))
+        )
+        trade_tab.click()
+    except:
+        print("Error entering trade ticket")
 
 def navigate_to_trade(driver):
     try:
@@ -191,24 +259,27 @@ def navigate_to_trade(driver):
         )
 
         brokerage_button.click()
+        rand_sleep()
     except:
-        print("Error clicking on brokerage tab")
+        logger.info("Error clicking on brokerage tab")
 
 def initiate_account_selection(driver):
     try:
         # Select Account
+        WebDriverWait(driver, 10).until(lambda driver: driver.execute_script('return document.readyState') == 'complete')
         portfolio_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@id="dropdown2"]'))
+            EC.element_to_be_clickable((By.XPATH, '/html/body/nav[2]/div/ul/li[4]'))
         )
-        portfolio_button.click()
-        very_short_sleep()
 
+        portfolio_button.click()
+
+        very_short_sleep()
         trademenu_button =  WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, '//*[@id="gotrading"]'))
         )
         trademenu_button.click()
     except:
-        print("Error clicking on trade menu button")
+        logger.info("Error clicking on trade menu button")
 
 def handle_popup(driver):
     try:
@@ -280,53 +351,62 @@ def sell_after_login(driver, tickers, trade_share_count):
             EC.element_to_be_clickable((By.XPATH, '//*[@id="dropdown2"]'))
         )
         select_account_dropdown.click()
+        very_short_sleep()
 
         # Obtain number of accounts
         li_elements = driver.find_elements(By.CSS_SELECTOR, '#dropdownlist2 li')
 
-        for account_num in li_elements:
-            account_select = driver.find_element(By.XPATH, f'//*[@id="dropdownlist2"]/li[{account_num}]')
+        for i in range(1, len(li_elements) + 1):
+            select_account_dropdown = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="dropdown2"]'))
+            )
+
+            if (i != 1):
+                select_account_dropdown.click()
+
+            account_select = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, f'//*[@id="dropdownlist2"]/li[{i}]'))
+            )
             account_select.click()
 
-            try: 
-                select_action = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, '//*[@id="BuySellBtn"]'))
+            try:
+                switch_ticket_conf = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, '//*[@id="btn-continue"]'))
                 )
-                select_action.click()
+                switch_ticket_conf.click()
+            except:
+                pass
+            short_sleep()
 
+            try: 
                 for ticker in tickers:
                     short_sleep()
                     order_url = driver.current_url
 
-                    sell_action = driver.find_element(By.XPATH, '//*[@id="eqentryfrm"]/div/div[1]/div[1]/div[1]/div[2]/ul/li[2]/a')
-                    sell_action.click()
-                    very_short_sleep()
+                    select_action = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, '//*[@id="BuySellBtn"]'))
+                    )
+                    select_action.click()
 
-                    conduct_trade(driver, ticker, trade_share_count)
-                    driver.get(order_url)
+                    try:
+                        sell_action = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, '//*[@id="eqentryfrm"]/div/div[1]/div[1]/div[1]/div[2]/ul/li[2]/a'))
+                        )
+                        sell_action.click()
+                        very_short_sleep()
+
+                        conduct_trade(driver, ticker, trade_share_count, "sell")
+                        driver.get(order_url)
+                    except:
+                        logger.info("Error conducting sell action")
             except:
-                print("Error configuring trade")
+                logger.info("Error configuring trade")
     except:
-        print("Error occurred in trade ticket")
+        logger.info("Error occurred in trade ticket")
 
-    print("No more accounts to process.")
+    logger.info("No more accounts to process.")
     driver.quit()
     # handle_popup(driver)
-
-def enterTradeTicket(driver):
-    try:
-        print("Initiating buy...")
-        portfolio_tab = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@id="MrA7JYMdjr"]/a'))
-        )
-        portfolio_tab.click()
-
-        trade_tab = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@id="gotrading"]'))
-        )
-        trade_tab.click()
-    except:
-        print("Error entering trade ticket")
 
 def complete_2fa_and_trade(session_id, two_fa_code=None):
     logger.info(f"Completing 2FA for Wells Fargo session {session_id}.")
@@ -359,6 +439,7 @@ def complete_2fa_and_trade(session_id, two_fa_code=None):
 
         continue_button = driver.find_element(By.XPATH, '//*[@id="FWNKNNFK"]')
         continue_button.click()
+        time.sleep(100)
     except:
         print("Error completing 2FA")
         return {'status': 'error', 'message': '2FA was incorrect.'}
