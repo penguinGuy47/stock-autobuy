@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 two_fa_sessions = {}
 
-def login(driver, tempdir ,username, password):
+def login(driver, tempdir, username, password):
     wait = WebDriverWait(driver, 25)
     try:
         driver.find_elements(By.TAG_NAME, "iframe")
@@ -72,8 +72,8 @@ def login(driver, tempdir ,username, password):
         }
 
         return {'status': '2FA_required', 'method': 'text', 'session_id': session_id}
-    except Exception as e:
-        print("Error sending 2FA as text, attempting alternative method:", e)
+    except:
+        print("Error sending 2FA as text, attempting alternative method")
         try:
             # Alternative 2FA handling in app
             send_to_app_btn = driver.execute_script(
@@ -336,7 +336,7 @@ def buy_after_login(driver, tickers, trade_share_count):
 
 def sell(tickers, dir, prof, trade_share_count, username, password, two_fa_code=None):
     logger.info(f"Initiating sell operation for {trade_share_count} shares of {tickers} by user {username}")
-    driver, temp_dir = start_headless_driver(dir, prof)
+    driver, temp_dir = start_regular_driver(dir, prof)
     try:
         driver.get("https://secure.chase.com/web/auth/dashboard#/dashboard/overviewAccounts/overview/index")
         login_response = login(driver, temp_dir, username, password)
