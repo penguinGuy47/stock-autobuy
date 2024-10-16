@@ -71,11 +71,7 @@ function TradeForm({ action, onRemove }) {
       } else if (response.data.status === '2FA_required') {
         setSessionId(response.data.session_id);
         setMethod(response.data.method); // 'text' or 'captcha_and_text'
-        if (response.data.method === 'captcha_and_text') {
-          toast.info('Captcha and 2FA are required. Please solve the Captcha in the browser and enter your 2FA code below.');
-        } else {
-          toast.info('2FA is required. Please enter your 2FA code below.');
-        }
+        toast.info('2FA is required.');
       } else {
         toast.error(`${capitalize(action)} failed: ${response.data.message || 'Unknown error.'}`);
         resetForm();
@@ -100,8 +96,10 @@ function TradeForm({ action, onRemove }) {
     try {
       const payload = {
         session_id: sessionId,
-        two_fa_code: twoFaCode,
+        two_fa_code: method === 'text' || 'captcha_and_text' ? twoFaCode : null,
       };
+
+      toast.info("Entering complete 2fa...\n\n\n")
       const response = await api.post('/complete_2fa', payload);
 
       if (response.data.status === 'success') {
@@ -193,6 +191,7 @@ function TradeForm({ action, onRemove }) {
               <option value="chase">Chase</option>
               <option value="fidelity">Fidelity</option>
               <option value="firstrade">First Trade</option>
+              <option value="public">Public</option>
               <option value="schwab">Schwab</option>
               <option value="webull">Webull</option>
               <option value="wells">Wells Fargo</option>
@@ -214,10 +213,10 @@ function TradeForm({ action, onRemove }) {
 
           {/* Username */}
           <FormRow>
-            <Label>{broker === 'webull' ? 'Phone Number' : 'Broker Username'}</Label>
+           <Label>{broker === 'webull' ? 'Phone Number' : broker === 'public' ? 'Email' : 'Broker Username'}</Label>
             <Input
               type="text"
-              placeholder={broker === 'webull' ? 'Phone Number' : 'Broker Username'}
+              placeholder={broker === 'webull' ? 'Phone Number' : broker === 'public' ? 'Email' : 'Broker Username'}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
