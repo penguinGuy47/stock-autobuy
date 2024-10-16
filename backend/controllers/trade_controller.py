@@ -5,6 +5,7 @@ from services.schwab import buy as schwab_buy, sell as schwab_sell
 from services.firstrade import buy as firstrade_buy, sell as firstrade_sell
 from services.webull import buy as webull_buy
 from services.wellsfargo import buy as wells_buy, sell as wells_sell
+from services.public import buy as public_buy, sell as public_sell
 import logging
 
 import os
@@ -20,6 +21,7 @@ BROKER_SERVICES = {
     'chase': {'buy': chase_buy, 'sell': chase_sell},
     'fidelity': {'buy': buy, 'sell': sell},
     'firstrade': {'buy': firstrade_buy, 'sell': firstrade_sell},
+    'public': {'buy': public_buy, 'sell': public_sell},
     'schwab': {'buy': schwab_buy, 'sell': schwab_sell},
     'webull': {'buy': webull_buy},
     'wells': {'buy': wells_buy, 'sell': wells_sell},
