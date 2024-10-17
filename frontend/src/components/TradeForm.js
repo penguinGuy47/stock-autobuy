@@ -193,7 +193,7 @@ function TradeForm({ action, onRemove }) {
               <option value="firstrade">First Trade</option>
               <option value="public">Public</option>
               <option value="schwab">Schwab</option>
-              <option value="webull">Webull</option>
+              {/* <option value="webull">Webull</option> */}
               <option value="wells">Wells Fargo</option>
             </Select>
           </FormRow>
