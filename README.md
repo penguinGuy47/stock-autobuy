@@ -7,7 +7,6 @@ Currently supported brokers:
 - Public
 - Schwab
 - Tradier
-- Webulls
 - Wells Fargo
 
 Upcoming updates:
