@@ -3,8 +3,12 @@ A program that will automatically buy/sell stocks in a streamlined fashion on al
 Currently supported brokers:
 - Chase
 - Fidelity
-- Schwab
 - First Trade
+- Public
+- Schwab
+- Tradier
+- Webulls
+- Wells Fargo
 
 Upcoming updates:
 - More brokerages
